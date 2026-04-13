@@ -1,8 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../services/api';
+import { registerForPushNotificationsAsync } from '../services/pushNotifications';
 
 const TOKEN_KEY = 'campuslyToken';
+const PUSH_TOKEN_KEY = 'campuslyExpoPushToken';
 
 const AuthContext = createContext(null);
 
@@ -34,6 +36,40 @@ export function AuthProvider({ children }) {
 
     bootstrap();
   }, []);
+
+  useEffect(() => {
+    async function syncPushToken() {
+      if (!token || user?.role !== 'student') {
+        return;
+      }
+
+      try {
+        const expoPushToken = await registerForPushNotificationsAsync();
+        if (!expoPushToken) {
+          return;
+        }
+
+        const previousToken = await AsyncStorage.getItem(PUSH_TOKEN_KEY);
+        if (previousToken === expoPushToken) {
+          return;
+        }
+
+        await apiRequest('/api/users/push-token', {
+          method: 'POST',
+          token,
+          body: {
+            token: expoPushToken,
+          },
+        });
+
+        await AsyncStorage.setItem(PUSH_TOKEN_KEY, expoPushToken);
+      } catch (error) {
+        console.log('Push token sync failed:', error?.message || error);
+      }
+    }
+
+    syncPushToken();
+  }, [token, user?.role]);
 
   const refreshMe = async (currentToken = token) => {
     if (!currentToken) return null;
@@ -91,6 +127,20 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
+    try {
+      const savedPushToken = await AsyncStorage.getItem(PUSH_TOKEN_KEY);
+      if (savedPushToken && token) {
+        await apiRequest('/api/users/push-token', {
+          method: 'DELETE',
+          token,
+          body: { token: savedPushToken },
+        });
+      }
+    } catch (error) {
+      console.log('Push token removal failed:', error?.message || error);
+    }
+
+    await AsyncStorage.removeItem(PUSH_TOKEN_KEY);
     await AsyncStorage.removeItem(TOKEN_KEY);
     setToken('');
     setUser(null);

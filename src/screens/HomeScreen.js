@@ -1,8 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../services/api';
+import { API_BASE } from '../services/config';
 import { AppButton, AppInput, Card, Heading, Muted, Screen } from '../components/ui';
 import { colors } from '../theme/colors';
 
@@ -41,6 +43,32 @@ export default function HomeScreen() {
       loadData();
     }, [loadData])
   );
+
+  useEffect(() => {
+    if (!token || user?.role !== 'student') {
+      return undefined;
+    }
+
+    const socket = io(API_BASE, {
+      auth: { token },
+      transports: ['websocket'],
+    });
+
+    const onAnnouncementNotification = (payload) => {
+      const title = payload?.title || 'New announcement';
+      const content = payload?.content || 'A teacher posted a new announcement.';
+
+      Alert.alert('Announcement', `${title}\n\n${content}`);
+      loadData();
+    };
+
+    socket.on('announcement_notification', onAnnouncementNotification);
+
+    return () => {
+      socket.off('announcement_notification', onAnnouncementNotification);
+      socket.disconnect();
+    };
+  }, [token, user?.role, loadData]);
 
   const onRefresh = async () => {
     setRefreshing(true);
