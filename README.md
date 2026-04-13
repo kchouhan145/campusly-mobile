@@ -1,7 +1,5 @@
 # Campusly Mobile (React Native + Expo)
 
-React Native app that mirrors the web modules in Campusly frontend and connects to:
-https://campusly-backend-zou3.onrender.com
 
 ## Included modules
 
