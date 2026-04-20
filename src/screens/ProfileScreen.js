@@ -15,10 +15,39 @@ function getInitials(name, username) {
   return `${parts[0][0] || ''}${parts[1][0] || ''}`.toUpperCase();
 }
 
+function getRoleTheme(role) {
+  if (role === 'admin') {
+    return {
+      avatarBg: '#ede9fe',
+      avatarText: '#5b21b6',
+      badgeBg: '#f3e8ff',
+      badgeText: '#6b21a8',
+      icon: 'A',
+    };
+  }
+
+  if (role === 'teacher') {
+    return {
+      avatarBg: '#dbeafe',
+      avatarText: '#1d4ed8',
+      badgeBg: '#e0f2fe',
+      badgeText: '#0c4a6e',
+      icon: 'T',
+    };
+  }
+
+  return {
+    avatarBg: '#dcfce7',
+    avatarText: '#166534',
+    badgeBg: '#ecfdf5',
+    badgeText: '#065f46',
+    icon: 'S',
+  };
+}
+
 export default function ProfileScreen() {
   const { token, user, refreshMe, logout } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
-  const [users, setUsers] = useState([]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [edit, setEdit] = useState({
@@ -33,7 +62,6 @@ export default function ProfileScreen() {
     setError('');
     try {
       const me = await apiRequest('/api/users/profile', { token });
-      const people = await apiRequest('/api/users', { token });
 
       const meUser = me.user || user;
       setEdit({
@@ -42,12 +70,13 @@ export default function ProfileScreen() {
         phone: meUser?.phone || '',
         bio: meUser?.bio || '',
       });
-      setUsers(Array.isArray(people.users) ? people.users : []);
       await refreshMe();
     } catch (e) {
       setError(e.message || 'Failed to load profile');
     }
   }, [refreshMe, token, user]);
+
+  const roleTheme = getRoleTheme(user?.role);
 
   useFocusEffect(
     useCallback(() => {
@@ -88,13 +117,22 @@ export default function ProfileScreen() {
 
         <Card style={styles.heroCard}>
           <View style={styles.heroRow}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>{getInitials(user?.name, user?.username)}</Text>
+            <View style={[styles.avatarCircle, { backgroundColor: roleTheme.avatarBg }]}>
+              <Text style={[styles.avatarText, { color: roleTheme.avatarText }]}>{getInitials(user?.name, user?.username)}</Text>
             </View>
             <View style={styles.heroMeta}>
               <Text style={styles.heroName}>{user?.name || 'Campusly User'}</Text>
               <Muted>@{user?.username || 'username'}</Muted>
-              <Muted>{user?.role || 'member'} | {user?.department || 'N/A'}</Muted>
+              <View style={styles.badgesRow}>
+                <View style={[styles.roleBadge, { backgroundColor: roleTheme.badgeBg }]}>
+                  <Text style={[styles.roleBadgeText, { color: roleTheme.badgeText }]}>
+                    {roleTheme.icon} {String(user?.role || 'member').toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.deptBadge}>
+                  <Text style={styles.deptBadgeText}>{user?.department || 'N/A'}</Text>
+                </View>
+              </View>
             </View>
           </View>
         </Card>
@@ -113,21 +151,6 @@ export default function ProfileScreen() {
           </View>
         </Card>
 
-        <Card style={styles.usersCard}>
-          <Heading size="sm">Campus users</Heading>
-          {users.map((person) => (
-            <View key={person._id} style={styles.userRow}>
-              <View style={styles.userAvatar}>
-                <Text style={styles.userAvatarText}>{getInitials(person.name, person.username)}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.text, fontWeight: '700' }}>{person.name} (@{person.username})</Text>
-                <Muted>{person.role} | {person.department || 'N/A'}</Muted>
-              </View>
-            </View>
-          ))}
-        </Card>
-
         <View style={{ height: 20 }} />
       </ScrollView>
     </Screen>
@@ -143,6 +166,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#dbeafe',
     backgroundColor: '#f8fbff',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   heroRow: {
     flexDirection: 'row',
@@ -164,46 +192,49 @@ const styles = StyleSheet.create({
   },
   heroMeta: {
     flex: 1,
-    gap: 2,
+    gap: 4,
   },
   heroName: {
     color: colors.text,
     fontSize: 18,
     fontWeight: '800',
   },
+  badgesRow: {
+    marginTop: 2,
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  roleBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  roleBadgeText: {
+    fontWeight: '700',
+    fontSize: 11,
+  },
+  deptBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: '#f1f5f9',
+  },
+  deptBadgeText: {
+    color: '#334155',
+    fontWeight: '700',
+    fontSize: 11,
+  },
   formCard: {
     marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
   },
   actionsRow: {
     marginTop: 4,
     flexDirection: 'row',
     gap: 10,
-  },
-  usersCard: {
-    marginTop: 12,
-  },
-  userRow: {
-    marginTop: 8,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#ffffff',
-  },
-  userAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#ecfeff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  userAvatarText: {
-    color: '#155e75',
-    fontWeight: '700',
-    fontSize: 12,
   },
 });

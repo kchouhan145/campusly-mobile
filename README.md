@@ -1,4 +1,4 @@
-# Campusly Mobile (React Native + Expo)
+# Campusly Mobile (Bare React Native)
 
 
 ## Included modules
@@ -16,24 +16,18 @@
 
 1. Install dependencies:
    npm install
-2. Start Expo:
+2. Start Metro:
    npm run start
-3. Open Android emulator or Expo Go.
-
-## Build APK (recommended with EAS)
-
-1. Install EAS CLI globally:
-   npm install -g eas-cli
-2. Login:
-   eas login
-3. Configure once (inside this folder):
-   eas build:configure
-4. Build installable APK:
-   eas build --platform android --profile preview
-
-The generated APK URL will be shown in the terminal after build finishes.
+3. Open an Android emulator or iOS simulator, then run `npm run android` or `npm run ios` from a separate terminal.
 
 ## Notes
 
+Push notifications now use Firebase Cloud Messaging (FCM) for true background/closed-app delivery.
+
+Required setup for Android push:
+- Add `google-services.json` to `android/app/google-services.json`.
+- Ensure your Firebase project uses the same Android package as the app (`com.campuslybare`).
+- Rebuild the app after adding Firebase config.
+
 - API base is currently hardcoded in src/services/config.js
-- This project uses Expo SDK 54 and React Native 0.81
+- This project uses React Native 0.81

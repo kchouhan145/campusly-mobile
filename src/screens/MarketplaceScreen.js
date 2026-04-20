@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Modal, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../services/api';
@@ -17,6 +18,14 @@ const initialForm = {
 
 const categories = ['all', 'books', 'electronics', 'clothing', 'furniture', 'others'];
 const statuses = ['all', 'available', 'sold'];
+
+const categoryAccent = {
+  books: '#2563eb',
+  electronics: '#7c3aed',
+  clothing: '#db2777',
+  furniture: '#d97706',
+  others: '#0f766e',
+};
 
 export default function MarketplaceScreen() {
   const { token, user } = useAuth();
@@ -66,6 +75,20 @@ export default function MarketplaceScreen() {
     if (productStatus === 'sold') return colors.danger;
     if (productStatus === 'available') return colors.accent;
     return colors.border;
+  };
+
+  const getProductCardStyle = (item) => {
+    if (item.status === 'sold') {
+      return {
+        backgroundColor: '#fef2f2',
+        borderLeftColor: '#dc2626',
+      };
+    }
+
+    return {
+      backgroundColor: '#f8fbff',
+      borderLeftColor: categoryAccent[item.category] || '#0ea5e9',
+    };
   };
 
   const onRefresh = async () => {
@@ -133,21 +156,42 @@ export default function MarketplaceScreen() {
     <Screen>
       <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         <View style={{ marginTop: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-          <Heading>Marketplace</Heading>
+          <Heading style={{ color: '#0f172a' }}>Marketplace</Heading>
           <AppButton title="Create" onPress={() => setShowCreateModal(true)} style={{ minWidth: 96, paddingVertical: 10, paddingHorizontal: 16 }} />
+        </View>
+        <View
+          style={{
+            marginTop: 10,
+            marginBottom: 10,
+            backgroundColor: '#ecfeff',
+            borderLeftWidth: 4,
+            borderLeftColor: '#0891b2',
+            borderRadius: 10,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+          }}
+        >
+          <Text style={{ color: '#155e75', fontWeight: '700' }}>Buy and Sell on Campus</Text>
+          <Muted>Explore listings from your college community.</Muted>
         </View>
         <AppInput style={{ marginTop: 10 }} label="Search" value={search} onChangeText={setSearch} />
         <Muted style={{ marginTop: 2 }}>Category filters</Muted>
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 10, flexWrap: 'wrap' }}>
-          {categories.map((item) => (
-            <AppButton
-              key={item}
-              title={item.charAt(0).toUpperCase() + item.slice(1)}
-              type={category === item ? 'primary' : 'ghost'}
-              style={{ minWidth: 96 }}
-              onPress={() => setCategory(item)}
-            />
-          ))}
+        <View
+          style={{
+            marginTop: 4,
+            marginBottom: 10,
+            borderWidth: 1,
+            borderColor: colors.border,
+            borderRadius: 10,
+            backgroundColor: '#ffffff',
+            overflow: 'hidden',
+          }}
+        >
+          <Picker selectedValue={category} onValueChange={(value) => setCategory(value)}>
+            {categories.map((item) => (
+              <Picker.Item key={item} label={item.charAt(0).toUpperCase() + item.slice(1)} value={item} />
+            ))}
+          </Picker>
         </View>
         <Muted style={{ marginTop: 2 }}>Status filters</Muted>
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 10 }}>
@@ -168,10 +212,27 @@ export default function MarketplaceScreen() {
           const canManage = user?.role === 'admin' || ownerId === user?.id;
 
           return (
-            <Card key={item._id} style={{ marginTop: 10, borderColor: getProductBorderColor(item.status), borderWidth: 2 }}>
+            <Card
+              key={item._id}
+              style={{
+                marginTop: 10,
+                borderColor: getProductBorderColor(item.status),
+                borderWidth: 1,
+                borderLeftWidth: 5,
+                ...getProductCardStyle(item),
+              }}
+            >
               <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>{item.title}</Text>
-              <Muted>{item.description}</Muted>
-              <Muted>INR {item.price} | {item.category} | {item.status}</Muted>
+              <Muted style={{ marginTop: 4 }}>{item.description}</Muted>
+              <Text
+                style={{
+                  color: item.status === 'sold' ? '#991b1b' : '#14532d',
+                  fontWeight: '700',
+                  marginTop: 6,
+                }}
+              >
+                INR {item.price} | {item.category} | {item.status}
+              </Text>
               <Muted>Contact: {item.contactInfo}</Muted>
               {canManage ? (
                 <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -216,16 +277,23 @@ export default function MarketplaceScreen() {
               />
               <View style={{ gap: 6 }}>
                 <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600' }}>Category</Text>
-                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                  {categories.filter((item) => item !== 'all').map((item) => (
-                    <AppButton
-                      key={item}
-                      title={item.charAt(0).toUpperCase() + item.slice(1)}
-                      type={createForm.category === item ? 'primary' : 'ghost'}
-                      style={{ minWidth: 96 }}
-                      onPress={() => setCreateForm((p) => ({ ...p, category: item }))}
-                    />
-                  ))}
+                <View
+                  style={{
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    borderRadius: 10,
+                    backgroundColor: '#ffffff',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Picker
+                    selectedValue={createForm.category}
+                    onValueChange={(value) => setCreateForm((p) => ({ ...p, category: value }))}
+                  >
+                    {categories.filter((item) => item !== 'all').map((item) => (
+                      <Picker.Item key={item} label={item.charAt(0).toUpperCase() + item.slice(1)} value={item} />
+                    ))}
+                  </Picker>
                 </View>
               </View>
               <AppInput

@@ -102,12 +102,48 @@ export default function LostFoundScreen() {
     return colors.border;
   };
 
+  const getPostCardStyle = (postType) => {
+    if (postType === 'found') {
+      return {
+        backgroundColor: '#ecfdf3',
+        borderLeftColor: '#16a34a',
+      };
+    }
+
+    if (postType === 'lost') {
+      return {
+        backgroundColor: '#fef2f2',
+        borderLeftColor: '#dc2626',
+      };
+    }
+
+    return {
+      backgroundColor: '#f8fafc',
+      borderLeftColor: colors.border,
+    };
+  };
+
   return (
     <Screen>
       <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         <View style={{ marginTop: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-          <Heading>Lost & Found</Heading>
+          <Heading style={{ color: '#0f172a' }}>Lost & Found</Heading>
           <AppButton title="Create" onPress={() => setShowCreateModal(true)} style={{ minWidth: 96, paddingVertical: 10, paddingHorizontal: 16 }} />
+        </View>
+        <View
+          style={{
+            marginTop: 10,
+            marginBottom: 10,
+            backgroundColor: '#ede9fe',
+            borderLeftWidth: 4,
+            borderLeftColor: '#7c3aed',
+            borderRadius: 10,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+          }}
+        >
+          <Text style={{ color: '#4c1d95', fontWeight: '700' }}>Post Lost or Found Items</Text>
+          <Muted>Quickly report items and help others recover them.</Muted>
         </View>
         <AppInput style={{marginTop:10}} label="Search" value={search} onChangeText={setSearch} />
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 10 }}>
@@ -118,11 +154,28 @@ export default function LostFoundScreen() {
         {!!error && <Text style={{ color: colors.danger }}>{error}</Text>}
 
         {filtered.map((item) => (
-          <Card key={item._id} style={{ marginTop: 10, borderColor: getPostBorderColor(item.type), borderWidth: 2 }}>
+          <Card
+            key={item._id}
+            style={{
+              marginTop: 10,
+              borderColor: getPostBorderColor(item.type),
+              borderWidth: 1,
+              borderLeftWidth: 5,
+              ...getPostCardStyle(item.type),
+            }}
+          >
             <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>{item.title}</Text>
-            <Muted>{item.type.toUpperCase()} | {item.isResolved ? 'Resolved' : 'Active'}</Muted>
-            <Muted>{item.description}</Muted>
-            <Muted>{item.location} | {new Date(item.createdAt).toLocaleDateString()}</Muted>
+            <Text
+              style={{
+                color: item.type === 'found' ? '#166534' : '#991b1b',
+                fontWeight: '700',
+                marginTop: 4,
+              }}
+            >
+              {item.type.toUpperCase()} | {item.isResolved ? 'Resolved' : 'Active'}
+            </Text>
+            <Muted style={{ marginTop: 4 }}>{item.description}</Muted>
+            <Muted style={{ marginTop: 6 }}>{item.location} | {new Date(item.createdAt).toLocaleDateString()}</Muted>
             <Muted>Contact: {item.contactInfo}</Muted>
             {(user?.role === 'admin' || (item.userId?._id || item.userId) === user?.id) ? (
               <AppButton title="Delete" type="danger" onPress={() => onDelete(item._id)} />

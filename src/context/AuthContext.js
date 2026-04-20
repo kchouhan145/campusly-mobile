@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../services/api';
-import { registerForPushNotificationsAsync } from '../services/pushNotifications';
+import { registerForPushNotificationsAsync, subscribeToTokenRefresh } from '../services/pushNotifications';
 
 const TOKEN_KEY = 'campuslyToken';
-const PUSH_TOKEN_KEY = 'campuslyExpoPushToken';
+const PUSH_TOKEN_KEY = 'campuslyPushToken';
 
 const AuthContext = createContext(null);
 
@@ -12,6 +12,22 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState('');
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const syncPushTokenToBackend = async (nextToken) => {
+    if (!nextToken || !token || user?.role !== 'student') {
+      return;
+    }
+
+    await apiRequest('/api/users/push-token', {
+      method: 'POST',
+      token,
+      body: {
+        token: nextToken,
+      },
+    });
+
+    await AsyncStorage.setItem(PUSH_TOKEN_KEY, nextToken);
+  };
 
   useEffect(() => {
     async function bootstrap() {
@@ -44,31 +60,34 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        const expoPushToken = await registerForPushNotificationsAsync();
-        if (!expoPushToken) {
+        const pushToken = await registerForPushNotificationsAsync();
+        if (!pushToken) {
           return;
         }
 
-        const previousToken = await AsyncStorage.getItem(PUSH_TOKEN_KEY);
-        if (previousToken === expoPushToken) {
-          return;
-        }
-
-        await apiRequest('/api/users/push-token', {
-          method: 'POST',
-          token,
-          body: {
-            token: expoPushToken,
-          },
-        });
-
-        await AsyncStorage.setItem(PUSH_TOKEN_KEY, expoPushToken);
+        await syncPushTokenToBackend(pushToken);
       } catch (error) {
         console.log('Push token sync failed:', error?.message || error);
       }
     }
 
     syncPushToken();
+  }, [token, user?.role]);
+
+  useEffect(() => {
+    if (!token || user?.role !== 'student') {
+      return undefined;
+    }
+
+    const unsubscribe = subscribeToTokenRefresh(async (newToken) => {
+      try {
+        await syncPushTokenToBackend(newToken);
+      } catch (error) {
+        console.log('Push token refresh sync failed:', error?.message || error);
+      }
+    });
+
+    return unsubscribe;
   }, [token, user?.role]);
 
   const refreshMe = async (currentToken = token) => {

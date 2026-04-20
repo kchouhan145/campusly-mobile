@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, RefreshControl, ScrollView, Text, View, StyleSheet, Image } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { io } from 'socket.io-client';
+import messaging from '@react-native-firebase/messaging';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../services/api';
 import { API_BASE } from '../services/config';
@@ -19,6 +20,10 @@ export default function HomeScreen() {
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const [announcementForm, setAnnouncementForm] = useState({ title: '', content: '' });
   const [creatingAnnouncement, setCreatingAnnouncement] = useState(false);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
+  const [showAnnouncementDetailsModal, setShowAnnouncementDetailsModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [showEventDetailsModal, setShowEventDetailsModal] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!token) return;
@@ -44,6 +49,40 @@ export default function HomeScreen() {
     }, [loadData])
   );
 
+  const openAnnouncementInApp = useCallback(
+    async ({ announcementId, fallbackTitle, fallbackContent, fallbackTeacherName }) => {
+      if (!token) {
+        return;
+      }
+
+      if (announcementId) {
+        try {
+          const data = await apiRequest(`/api/announcements/${announcementId}`, { token });
+          if (data?.announcement) {
+            setSelectedAnnouncement(data.announcement);
+            setShowAnnouncementDetailsModal(true);
+            await loadData();
+            return;
+          }
+        } catch (error) {
+          // Fall back to payload content if announcement fetch fails.
+        }
+      }
+
+      if (fallbackTitle || fallbackContent) {
+        setSelectedAnnouncement({
+          title: fallbackTitle || 'Announcement',
+          content: fallbackContent || 'Open announcements to read more.',
+          teacherName: fallbackTeacherName || 'Teacher',
+        });
+        setShowAnnouncementDetailsModal(true);
+      }
+
+      await loadData();
+    },
+    [token, loadData]
+  );
+
   useEffect(() => {
     if (!token || user?.role !== 'student') {
       return undefined;
@@ -56,10 +95,24 @@ export default function HomeScreen() {
 
     const onAnnouncementNotification = (payload) => {
       const title = payload?.title || 'New announcement';
-      const content = payload?.content || 'A teacher posted a new announcement.';
+      const teacherName = payload?.announcement?.teacherName || payload?.teacherName || 'Teacher';
+      const content = payload?.content || 'Open Campusly to read more.';
+      const announcementId = payload?.announcement?._id || payload?.announcementId;
 
-      Alert.alert('Announcement', `${title}\n\n${content}`);
-      loadData();
+      Alert.alert('Announcement', `${title}\nBy ${teacherName}`, [
+        { text: 'Later', style: 'cancel' },
+        {
+          text: 'View',
+          onPress: () => {
+            openAnnouncementInApp({
+              announcementId,
+              fallbackTitle: title,
+              fallbackContent: content,
+              fallbackTeacherName: teacherName,
+            });
+          },
+        },
+      ]);
     };
 
     socket.on('announcement_notification', onAnnouncementNotification);
@@ -68,7 +121,45 @@ export default function HomeScreen() {
       socket.off('announcement_notification', onAnnouncementNotification);
       socket.disconnect();
     };
-  }, [token, user?.role, loadData]);
+  }, [token, user?.role, openAnnouncementInApp]);
+
+  useEffect(() => {
+    if (!token || user?.role !== 'student') {
+      return undefined;
+    }
+
+    const openFromRemoteMessage = (remoteMessage) => {
+      const announcementId = remoteMessage?.data?.announcementId;
+      const title = remoteMessage?.data?.title || remoteMessage?.notification?.title;
+      const content = remoteMessage?.data?.content || remoteMessage?.notification?.body;
+      const teacherName = remoteMessage?.data?.teacherName;
+
+      return openAnnouncementInApp({
+        announcementId,
+        fallbackTitle: title,
+        fallbackContent: content,
+        fallbackTeacherName: teacherName,
+      });
+    };
+
+    const unsubscribeNotificationOpen = messaging().onNotificationOpenedApp(openFromRemoteMessage);
+    const unsubscribeForegroundMessage = messaging().onMessage(openFromRemoteMessage);
+
+    messaging()
+      .getInitialNotification()
+      .then((remoteMessage) => {
+        if (remoteMessage) {
+          return openFromRemoteMessage(remoteMessage);
+        }
+        return null;
+      })
+      .catch(() => {});
+
+    return () => {
+      unsubscribeNotificationOpen();
+      unsubscribeForegroundMessage();
+    };
+  }, [token, user?.role, openAnnouncementInApp]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -149,6 +240,79 @@ export default function HomeScreen() {
     return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }).length;
 
+  const styles = StyleSheet.create({
+    announcementCard: {
+      backgroundColor: '#fef3c7',
+      marginTop: 12,
+      borderLeftWidth: 5,
+      borderLeftColor: '#f59e0b',
+      borderRadius: 10,
+      padding: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    announcementItem: {
+      backgroundColor: '#fef9f0',
+      marginTop: 8,
+      borderColor: '#f59e0b',
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 12,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    announcementTitle: {
+      flex: 1,
+      color: colors.text,
+      fontWeight: '700',
+      marginRight: 8,
+    },
+    announcementMuted: {
+      color: colors.textMuted,
+      fontWeight: '500',
+      marginTop: 4,
+    },
+    eventCard: {
+      backgroundColor: '#e0f2fe',
+      marginTop: 12,
+      borderLeftWidth: 5,
+      borderLeftColor: '#0284c7',
+      borderRadius: 10,
+      padding: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    eventItem: {
+      backgroundColor: '#f0f9fe',
+      marginTop: 8,
+      borderColor: '#0284c7',
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 12,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    eventTitle: {
+      flex: 1,
+      color: colors.text,
+      fontWeight: '700',
+      marginRight: 8,
+    },
+    eventMuted: {
+      color: colors.textMuted,
+      fontWeight: '500',
+      marginTop: 4,
+    },
+  });
+
   return (
     <Screen>
       <ScrollView
@@ -174,78 +338,70 @@ export default function HomeScreen() {
           <Text style={{ color: colors.text, marginTop: 6 }}>Active chats: {chats.length}</Text>
         </Card> */}
 
-        <Card style={{ marginTop: 12 }}>
-          <Heading size="sm">Important announcements</Heading>
+        <Card style={styles.announcementCard}>
+          <Heading size="sm" style={{ color: '#92400e' }}>📢 Important Announcements</Heading>
           {announcements.length === 0 ? <Muted>No announcements yet.</Muted> : null}
           {announcements.map((item) => (
-            <View
+            <Pressable
               key={item._id}
-              style={{
-                marginTop: 8,
-                borderColor: colors.border,
-                borderWidth: 1,
-                borderRadius: 10,
-                padding: 10,
+              onPress={() => {
+                setSelectedAnnouncement(item);
+                setShowAnnouncementDetailsModal(true);
               }}
+              android_ripple={{ color: '#f59e0b', radius: 500 }}
+              style={({ pressed }) => [
+                styles.announcementItem,
+                pressed && { opacity: 0.7 }
+              ]}
             >
-              <Text style={{ color: colors.text, fontWeight: '700' }}>{item.title}</Text>
-              <Muted>{item.content}</Muted>
-              <Muted style={{fontWeight:'600'}}>By {item.teacherName}</Muted>
-              {(user?.role === 'admin' || (item.createdBy?._id || item.createdBy) === user?.id) ? (
-                <View style={{ marginTop: 8 }}>
-                  <AppButton title="Delete announcement" type="danger" onPress={() => onDeleteAnnouncement(item._id)} />
-                </View>
-              ) : null}
-            </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.announcementTitle}>{item.title}</Text>
+                <Text style={styles.announcementMuted}>By {item.teacherName}</Text>
+              </View>
+              <Text style={{ fontSize: 18 }}>→</Text>
+            </Pressable>
           ))}
+          {(user?.role === 'admin' || user?.role === 'teacher') && announcements.length > 0 ? (
+            <View style={{ marginTop: 12 }}>
+              <Pressable onPress={() => navigation.navigate('Announcements')}>
+                <Text style={{ color: '#f59e0b', fontWeight: '600', textAlign: 'center' }}>View all announcements</Text>
+              </Pressable>
+            </View>
+          ) : null}
         </Card>
 
-        <Card style={{ marginTop: 12 }}>
-          <Heading size="sm">Upcoming events</Heading>
-          <Pressable onPress={() => navigation.navigate('Events')}>
-            <Muted>Tap to open Events</Muted>
-          </Pressable>
+        <Card style={styles.eventCard}>
+          <Heading size="sm" style={{ color: '#0c4a6e' }}>📅 Upcoming Events</Heading>
           {events.length === 0 ? <Muted>No events yet.</Muted> : null}
           {events.map((item) => (
-            <View key={item._id} style={{
-                marginTop: 8,
-                borderColor: colors.border,
-                borderWidth: 1,
-                borderRadius: 10,
-                padding: 10,
-              }}>
-              <Text style={{ color: colors.text, fontWeight: '700' }}>{item.title}</Text>
-              <Muted>{new Date(item.date).toLocaleString()} | {item.location}</Muted>
-              {(user?.role === 'admin' || (item.createdBy?._id || item.createdBy) === user?.id) ? (
-                <View style={{ marginTop: 8 }}>
-                  <AppButton title="Delete event" type="danger" onPress={() => onDeleteEvent(item._id)} />
-                </View>
-              ) : null}
-            </View>
+            <Pressable
+              key={item._id}
+              onPress={() => {
+                setSelectedEvent(item);
+                setShowEventDetailsModal(true);
+              }}
+              android_ripple={{ color: '#0284c7', radius: 500 }}
+              style={({ pressed }) => [
+                styles.eventItem,
+                pressed && { opacity: 0.7 }
+              ]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.eventTitle}>{item.title}</Text>
+                <Text style={styles.eventMuted}>{new Date(item.date).toLocaleString()} | {item.location}</Text>
+              </View>
+              <Text style={{ fontSize: 18 }}>→</Text>
+            </Pressable>
           ))}
+          {(user?.role === 'admin' || user?.role === 'teacher') && events.length > 0 ? (
+            <View style={{ marginTop: 12 }}>
+              <Pressable onPress={() => navigation.navigate('Events')}>
+                <Text style={{ color: '#0284c7', fontWeight: '600', textAlign: 'center' }}>View all events</Text>
+              </Pressable>
+            </View>
+          ) : null}
         </Card>
 
-        <Pressable onPress={() => navigation.navigate('Chat')}>
-          <Card style={{ marginTop: 12, marginBottom: 24 }}>
-            <Heading size="sm">Recent chats</Heading>
-            <Muted>Tap to open Chat</Muted>
-            {chats.length === 0 ? <Muted>No chat activity.</Muted> : null}
-            {chats.map((item) => (
-              <View key={item._id} style={{
-                  marginTop: 8,
-                  borderColor: colors.border,
-                  borderWidth: 1,
-                  borderRadius: 10,
-                  padding: 10,
-                }}>
-                <Text style={{ color: colors.text, fontWeight: '700' }}>
-                  {item.chatType === 'department' ? `${item.department} Department` : 'Direct chat'}
-                </Text>
-                <Muted>{item.message || 'No messages yet'}</Muted>
-              </View>
-            ))}
-          </Card>
-        </Pressable>
 
         <Modal
           visible={showAnnouncementModal}
@@ -291,6 +447,117 @@ export default function HomeScreen() {
                   onPress={onCreateAnnouncement}
                   loading={creatingAnnouncement}
                 />
+              </View>
+            </Card>
+          </View>
+        </Modal>
+
+        <Modal
+          visible={showAnnouncementDetailsModal}
+          animationType="fade"
+          transparent
+          onRequestClose={() => setShowAnnouncementDetailsModal(false)}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(15, 23, 42, 0.35)',
+              justifyContent: 'center',
+              padding: 20,
+            }}
+          >
+            <Card>
+              <View style={{ borderLeftWidth: 5, borderLeftColor: '#f59e0b', paddingLeft: 12, marginLeft: -12 }}>
+                <Heading size="sm" style={{ color: '#92400e' }}>{selectedAnnouncement?.title || 'Announcement'}</Heading>
+              </View>
+              <Muted style={{ marginTop: 8, fontWeight: '600', fontSize: 14 }}>
+                By {selectedAnnouncement?.teacherName || selectedAnnouncement?.createdBy?.name || 'Teacher'}
+              </Muted>
+              <Text style={{ color: colors.text, marginTop: 12, lineHeight: 22 }}>
+                {selectedAnnouncement?.content || 'No content available.'}
+              </Text>
+              {selectedAnnouncement?.image ? (
+                <Image 
+                  source={{ uri: selectedAnnouncement.image }} 
+                  style={{ width: '100%', height: 200, borderRadius: 8, marginTop: 12 }}
+                />
+              ) : null}
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                <AppButton
+                  title="Close"
+                  type="ghost"
+                  style={{ flex: 1 }}
+                  onPress={() => {
+                    setShowAnnouncementDetailsModal(false);
+                    setSelectedAnnouncement(null);
+                  }}
+                />
+                {(user?.role === 'admin' || (selectedAnnouncement?.createdBy?._id || selectedAnnouncement?.createdBy) === user?.id) ? (
+                  <AppButton
+                    title="Delete"
+                    type="danger"
+                    style={{ flex: 1 }}
+                    onPress={() => {
+                      onDeleteAnnouncement(selectedAnnouncement._id);
+                      setShowAnnouncementDetailsModal(false);
+                      setSelectedAnnouncement(null);
+                    }}
+                  />
+                ) : null}
+              </View>
+            </Card>
+          </View>
+        </Modal>
+
+        <Modal
+          visible={showEventDetailsModal}
+          animationType="fade"
+          transparent
+          onRequestClose={() => setShowEventDetailsModal(false)}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(15, 23, 42, 0.35)',
+              justifyContent: 'center',
+              padding: 20,
+            }}
+          >
+            <Card>
+              <View style={{ borderLeftWidth: 5, borderLeftColor: '#0284c7', paddingLeft: 12, marginLeft: -12 }}>
+                <Heading size="sm" style={{ color: '#0c4a6e' }}>{selectedEvent?.title || 'Event'}</Heading>
+              </View>
+              <Muted style={{ marginTop: 8, fontWeight: '600', fontSize: 14 }}>
+                📅 {new Date(selectedEvent?.date).toLocaleString()}
+              </Muted>
+              <Muted style={{ marginTop: 4, fontWeight: '600', fontSize: 14 }}>
+                📍 {selectedEvent?.location || 'Location TBA'}
+              </Muted>
+              <Text style={{ color: colors.text, marginTop: 12, lineHeight: 22 }}>
+                {selectedEvent?.description || 'No description available.'}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                <AppButton
+                  title="Close"
+                  type="ghost"
+                  style={{ flex: 1 }}
+                  onPress={() => {
+                    setShowEventDetailsModal(false);
+                    setSelectedEvent(null);
+                  }}
+                />
+                {(user?.role === 'admin' || (selectedEvent?.createdBy?._id || selectedEvent?.createdBy) === user?.id) ? (
+                  <AppButton
+                    title="Delete"
+                    type="danger"
+                    style={{ flex: 1 }}
+                    onPress={() => {
+                      onDeleteEvent(selectedEvent._id);
+                      setShowEventDetailsModal(false);
+                      setSelectedEvent(null);
+                    }}
+                  />
+                ) : null}
               </View>
             </Card>
           </View>

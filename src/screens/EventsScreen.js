@@ -15,6 +15,8 @@ const initialCreate = {
   department: '',
 };
 
+const cardAccentColors = ['#0284c7', '#0ea5e9', '#22c55e', '#f59e0b'];
+
 export default function EventsScreen() {
   const { token, user } = useAuth();
   const [events, setEvents] = useState([]);
@@ -103,7 +105,7 @@ export default function EventsScreen() {
     <Screen>
       <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         <View style={{ marginTop: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-          <Heading>Events</Heading>
+          <Heading style={{ color: '#0c4a6e' }}>Events</Heading>
           {canCreate ? (
             <AppButton
               title="Create"
@@ -112,14 +114,36 @@ export default function EventsScreen() {
             />
           ) : null}
         </View>
+        <View
+          style={{
+            marginTop: 10,
+            marginBottom: 12,
+            backgroundColor: '#e0f2fe',
+            borderLeftWidth: 4,
+            borderLeftColor: '#0284c7',
+            borderRadius: 10,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+          }}
+        >
+          <Text style={{ color: '#0c4a6e', fontWeight: '700' }}>Campus Events</Text>
+          <Muted>Find what is happening and join in.</Muted>
+        </View>
         <AppInput style={{marginBottom:10}} label="Search events" value={search} onChangeText={setSearch} />
         {!!error && <Text style={{ color: colors.danger }}>{error}</Text>}
 
-        {filtered.map((item) => (
-          <Card key={item._id}>
+        {filtered.map((item, index) => (
+          <Card
+            key={item._id}
+            style={{
+              borderLeftWidth: 5,
+              borderLeftColor: cardAccentColors[index % cardAccentColors.length],
+              backgroundColor: '#f8fbff',
+            }}
+          >
             <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>{item.title}</Text>
-            <Muted>{item.description}</Muted>
-            <Muted>{new Date(item.date).toLocaleString()} | {item.location}</Muted>
+            <Muted style={{ marginTop: 4 }}>{item.description}</Muted>
+            <Muted style={{ marginTop: 6 }}>{new Date(item.date).toLocaleString()} | {item.location}</Muted>
             <Muted>Department: {item.department || 'N/A'}</Muted>
             {(user?.role === 'admin' || (item.createdBy?._id || item.createdBy) === user?.id) ? (
               <AppButton title="Delete" type="danger" onPress={() => onDelete(item._id)} />
