@@ -26,6 +26,7 @@ export default function EventsScreen() {
   const [createForm, setCreateForm] = useState(initialCreate);
   const [creating, setCreating] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [registeringEventId, setRegisteringEventId] = useState('');
 
   const canCreate = user?.role === 'teacher' || user?.role === 'admin';
 
@@ -51,6 +52,26 @@ export default function EventsScreen() {
     if (!q) return events;
     return events.filter((item) => `${item.title} ${item.description} ${item.location}`.toLowerCase().includes(q));
   }, [events, search]);
+
+  const { todaysEventCount, upcomingEventCount } = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+    let todays = 0;
+    let upcoming = 0;
+
+    events.forEach((event) => {
+      const eventDate = new Date(event.date);
+      if (eventDate >= todayStart && eventDate < todayEnd) {
+        todays += 1;
+      } else if (eventDate >= todayEnd) {
+        upcoming += 1;
+      }
+    });
+
+    return { todaysEventCount: todays, upcomingEventCount: upcoming };
+  }, [events]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -101,6 +122,22 @@ export default function EventsScreen() {
     ]);
   };
 
+  const onRegister = async (id) => {
+    setError('');
+    setRegisteringEventId(id);
+    try {
+      await apiRequest(`/api/events/${id}/register`, {
+        method: 'POST',
+        token,
+      });
+      await loadEvents();
+    } catch (e) {
+      setError(e.message || 'Registration failed');
+    } finally {
+      setRegisteringEventId('');
+    }
+  };
+
   return (
     <Screen>
       <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
@@ -129,27 +166,108 @@ export default function EventsScreen() {
           <Text style={{ color: '#0c4a6e', fontWeight: '700' }}>Campus Events</Text>
           <Muted>Find what is happening and join in.</Muted>
         </View>
+
+        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: '#fef3c7',
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: '#f59e0b',
+              paddingVertical: 10,
+              paddingHorizontal: 12,
+            }}
+          >
+            <Text style={{ color: '#92400e', fontWeight: '700', fontSize: 13 }}>Today's events</Text>
+            <Text style={{ color: '#78350f', fontWeight: '800', fontSize: 22, marginTop: 2 }}>{todaysEventCount}</Text>
+          </View>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: '#dcfce7',
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: '#22c55e',
+              paddingVertical: 10,
+              paddingHorizontal: 12,
+            }}
+          >
+            <Text style={{ color: '#166534', fontWeight: '700', fontSize: 13 }}>Upcoming events</Text>
+            <Text style={{ color: '#14532d', fontWeight: '800', fontSize: 22, marginTop: 2 }}>{upcomingEventCount}</Text>
+          </View>
+        </View>
         <AppInput style={{marginBottom:10}} label="Search events" value={search} onChangeText={setSearch} />
         {!!error && <Text style={{ color: colors.danger }}>{error}</Text>}
 
-        {filtered.map((item, index) => (
-          <Card
-            key={item._id}
-            style={{
-              borderLeftWidth: 5,
-              borderLeftColor: cardAccentColors[index % cardAccentColors.length],
-              backgroundColor: '#f8fbff',
-            }}
-          >
-            <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>{item.title}</Text>
-            <Muted style={{ marginTop: 4 }}>{item.description}</Muted>
-            <Muted style={{ marginTop: 6 }}>{new Date(item.date).toLocaleString()} | {item.location}</Muted>
-            <Muted>Department: {item.department || 'N/A'}</Muted>
-            {(user?.role === 'admin' || (item.createdBy?._id || item.createdBy) === user?.id) ? (
-              <AppButton title="Delete" type="danger" onPress={() => onDelete(item._id)} />
-            ) : null}
-          </Card>
-        ))}
+        {filtered.map((item, index) => {
+          const eventDate = new Date(item.date);
+          const now = new Date();
+          const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+          const isToday = eventDate >= todayStart && eventDate < todayEnd;
+
+          const attendees = Array.isArray(item.attendees) ? item.attendees : [];
+          const userId = user?.id || user?._id;
+          const isRegistered = attendees.some((attendee) => (attendee?._id || attendee)?.toString() === userId?.toString());
+          const isFull = !!item.maxAttendees && attendees.length >= item.maxAttendees;
+          const canRegister = user?.role === 'student' && !isRegistered && !isFull;
+
+          return (
+            <Card
+              key={item._id}
+              style={{
+                borderLeftWidth: 5,
+                borderLeftColor: isToday ? '#f59e0b' : cardAccentColors[index % cardAccentColors.length],
+                backgroundColor: isToday ? '#fffbeb' : '#f8fbff',
+                borderColor: isToday ? '#fcd34d' : colors.border,
+                borderWidth: 1,
+              }}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16, flex: 1 }}>{item.title}</Text>
+                {isToday ? (
+                  <View
+                    style={{
+                      backgroundColor: '#f59e0b',
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: 999,
+                    }}
+                  >
+                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>TODAY</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Muted style={{ marginTop: 4 }}>{item.description}</Muted>
+              <Muted style={{ marginTop: 6 }}>{new Date(item.date).toLocaleString()} | {item.location}</Muted>
+              <Muted>Department: {item.department || 'N/A'}</Muted>
+              <Muted>
+                Registered: {attendees.length}
+                {item.maxAttendees ? ` / ${item.maxAttendees}` : ''}
+              </Muted>
+
+              {user?.role === 'student' && isRegistered ? (
+                <AppButton title="Registered" type="ghost" disabled />
+              ) : null}
+
+              {canRegister ? (
+                <AppButton
+                  title="Register"
+                  onPress={() => onRegister(item._id)}
+                  loading={registeringEventId === item._id}
+                  disabled={registeringEventId === item._id}
+                />
+              ) : null}
+
+              {user?.role === 'student' && isFull && !isRegistered ? <Muted style={{ color: '#b45309' }}>Registration full</Muted> : null}
+
+              {(user?.role === 'admin' || (item.createdBy?._id || item.createdBy) === user?.id) ? (
+                <AppButton title="Delete" type="danger" onPress={() => onDelete(item._id)} />
+              ) : null}
+            </Card>
+          );
+        })}
         <View style={{ height: 20 }} />
 
         <Modal

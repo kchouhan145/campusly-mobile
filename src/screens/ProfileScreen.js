@@ -1,9 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../services/api';
-import { AppButton, AppInput, Card, Heading, Muted, Screen } from '../components/ui';
+import { AppButton, Card, Heading, Muted, Screen } from '../components/ui';
 import { colors } from '../theme/colors';
 
 function getInitials(name, username) {
@@ -49,62 +48,28 @@ export default function ProfileScreen() {
   const { token, user, refreshMe, logout } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [edit, setEdit] = useState({
-    name: '',
-    department: '',
-    phone: '',
-    bio: '',
-  });
 
   const loadData = useCallback(async () => {
     if (!token) return;
     setError('');
     try {
-      const me = await apiRequest('/api/users/profile', { token });
-
-      const meUser = me.user || user;
-      setEdit({
-        name: meUser?.name || '',
-        department: meUser?.department || '',
-        phone: meUser?.phone || '',
-        bio: meUser?.bio || '',
-      });
+      await apiRequest('/api/users/profile', { token });
       await refreshMe();
     } catch (e) {
       setError(e.message || 'Failed to load profile');
     }
-  }, [refreshMe, token, user]);
+  }, [refreshMe, token]);
 
   const roleTheme = getRoleTheme(user?.role);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadData();
-    }, [loadData])
-  );
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const onRefresh = async () => {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
-  };
-
-  const onSave = async () => {
-    setSaving(true);
-    setError('');
-    try {
-      await apiRequest('/api/users/profile', {
-        method: 'PUT',
-        token,
-        body: edit,
-      });
-      await loadData();
-    } catch (e) {
-      setError(e.message || 'Failed to save profile');
-    } finally {
-      setSaving(false);
-    }
   };
 
   return (
@@ -140,15 +105,32 @@ export default function ProfileScreen() {
         {!!error && <Text style={{ color: colors.danger }}>{error}</Text>}
 
         <Card style={styles.formCard}>
-          <Heading size="sm">Edit profile</Heading>
-          <AppInput label="Name" value={edit.name} onChangeText={(v) => setEdit((p) => ({ ...p, name: v }))} />
-          <AppInput label="Department" value={edit.department} onChangeText={(v) => setEdit((p) => ({ ...p, department: v }))} />
-          <AppInput label="Phone" value={edit.phone} onChangeText={(v) => setEdit((p) => ({ ...p, phone: v }))} />
-          <AppInput label="Bio" multiline value={edit.bio} onChangeText={(v) => setEdit((p) => ({ ...p, bio: v }))} />
-          <View style={styles.actionsRow}>
-            <AppButton title="Save" onPress={onSave} loading={saving} style={{ flex: 1 }} />
-            <AppButton title="Logout" type="danger" onPress={logout} style={{ flex: 1 }} />
+          <Heading size="sm">Your details</Heading>
+          <View style={styles.detailRow}>
+            <Muted style={styles.detailLabel}>Name</Muted>
+            <Text style={styles.detailValue}>{user?.name || 'N/A'}</Text>
           </View>
+          <View style={styles.detailRow}>
+            <Muted style={styles.detailLabel}>Username</Muted>
+            <Text style={styles.detailValue}>@{user?.username || 'username'}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Muted style={styles.detailLabel}>Department</Muted>
+            <Text style={styles.detailValue}>{user?.department || 'N/A'}</Text>
+          </View>
+          {/* <View style={styles.detailRow}>
+            <Muted style={styles.detailLabel}>Phone</Muted>
+            <Text style={styles.detailValue}>{user?.phone || 'N/A'}</Text>
+          </View> */}
+          {/* <View style={styles.detailRow}>
+            <Muted style={styles.detailLabel}>Bio</Muted>
+            <Text style={styles.detailValue}>{user?.bio || 'No bio added yet.'}</Text>
+          </View> */}
+          <View style={styles.detailRow}>
+            <Muted style={styles.detailLabel}>Role</Muted>
+            <Text style={styles.detailValue}>{String(user?.role || 'member').toUpperCase()}</Text>
+          </View>
+          <AppButton title="Logout" type="danger" onPress={logout} style={{ marginTop: 4 }} />
         </Card>
 
         <View style={{ height: 20 }} />
@@ -232,9 +214,20 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     backgroundColor: '#ffffff',
   },
-  actionsRow: {
-    marginTop: 4,
-    flexDirection: 'row',
-    gap: 10,
+  detailRow: {
+    gap: 2,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  detailLabel: {
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  detailValue: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

@@ -31,7 +31,7 @@ export default function HomeScreen() {
     try {
       const [announcementData, eventData, chatData] = await Promise.all([
         apiRequest('/api/announcements', { token }),
-        apiRequest('/api/events', { token }),
+        apiRequest('/api/events?upcoming=true', { token }),
         apiRequest('/api/messages/chats', { token }),
       ]);
 
@@ -239,6 +239,8 @@ export default function HomeScreen() {
     const now = new Date();
     return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }).length;
+
+  const upcomingEvents = events.filter((ev) => new Date(ev.date) >= new Date());
 
   const styles = StyleSheet.create({
     announcementCard: {

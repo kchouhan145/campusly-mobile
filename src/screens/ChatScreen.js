@@ -1,9 +1,11 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../services/api';
 import { AppButton, AppInput, Card, Heading, Muted, Screen } from '../components/ui';
+import { API_BASE } from '../services/config';
 import { colors } from '../theme/colors';
 
 function getSenderId(value) {
@@ -20,6 +22,36 @@ function chatTitle(chat, myId) {
 
 function chatPreview(chat) {
   return chat?.message || 'No messages yet';
+}
+
+function getDirectOtherUserId(chat, myId) {
+  if (!chat) return '';
+  if (chat.directUser?._id) {
+    return chat.directUser._id;
+  }
+
+  if (chat.senderId?._id === myId || chat.senderId === myId) {
+    return chat.receiverId?._id || chat.receiverId || '';
+  }
+
+  return chat.senderId?._id || chat.senderId || '';
+}
+
+function getDepartmentKey(chat, userDepartment) {
+  return chat?.department || userDepartment || '';
+}
+
+function getSenderLabel(message, myId) {
+  const sender = message?.senderId || {};
+  if ((sender?._id || sender) === myId) {
+    return 'You';
+  }
+
+  return sender?.name || sender?.username || 'Member';
+}
+
+function getSenderRole(message) {
+  return message?.senderId?.role || 'student';
 }
 
 function initialsFromTitle(value) {
@@ -48,6 +80,44 @@ export default function ChatScreen() {
   const [showPeopleModal, setShowPeopleModal] = useState(false);
   const [peopleSearch, setPeopleSearch] = useState('');
   const [showConversation, setShowConversation] = useState(false);
+  const selectedRef = useRef(null);
+  const socketRef = useRef(null);
+
+  useEffect(() => {
+    selectedRef.current = selected;
+  }, [selected]);
+
+  const refreshChats = useCallback(async () => {
+    if (!token) return [];
+
+    const chatData = await apiRequest('/api/messages/chats', { token });
+    const chatList = Array.isArray(chatData.chats) ? chatData.chats : [];
+    setChats(chatList);
+    return chatList;
+  }, [token]);
+
+  const markChatAsRead = useCallback(
+    async (chat) => {
+      if (!chat || !token) return;
+
+      if (chat.chatType === 'department') {
+        await apiRequest('/api/messages/department/read', {
+          method: 'PATCH',
+          token,
+        });
+        return;
+      }
+
+      const otherUserId = getDirectOtherUserId(chat, user?.id);
+      if (!otherUserId) return;
+
+      await apiRequest(`/api/messages/${otherUserId}/read`, {
+        method: 'PATCH',
+        token,
+      });
+    },
+    [token, user?.id]
+  );
 
   const loadMessages = useCallback(
     async (chat) => {
@@ -58,25 +128,32 @@ export default function ChatScreen() {
           const dep = encodeURIComponent(chat.department || user?.department || '');
           const data = await apiRequest(`/api/messages/department/messages?department=${dep}`, { token });
           setMessages(Array.isArray(data.messages) ? data.messages : []);
-          return;
+        } else {
+          const otherUserId =
+            chat.directUser?._id ||
+            (chat.senderId?._id === user?.id ? chat.receiverId?._id || chat.receiverId : chat.senderId?._id || chat.senderId);
+
+          if (!otherUserId) {
+            setMessages([]);
+            return;
+          }
+
+          const data = await apiRequest(`/api/messages/${otherUserId}`, { token });
+          setMessages(Array.isArray(data.messages) ? data.messages : []);
         }
-
-        const otherUserId =
-          chat.directUser?._id ||
-          (chat.senderId?._id === user?.id ? chat.receiverId?._id || chat.receiverId : chat.senderId?._id || chat.senderId);
-
-        if (!otherUserId) {
-          setMessages([]);
-          return;
-        }
-
-        const data = await apiRequest(`/api/messages/${otherUserId}`, { token });
-        setMessages(Array.isArray(data.messages) ? data.messages : []);
       } catch (e) {
         setError(e.message || 'Failed to load messages');
+        return;
+      }
+
+      try {
+        await markChatAsRead(chat);
+        await refreshChats();
+      } catch (e) {
+        setError(e.message || 'Failed to update read status');
       }
     },
-    [token, user?.department, user?.id]
+    [markChatAsRead, refreshChats, token, user?.department, user?.id]
   );
 
   const loadAll = useCallback(async () => {
@@ -92,7 +169,7 @@ export default function ChatScreen() {
       setChats(chatList);
       setPeople(Array.isArray(peopleData.users) ? peopleData.users : []);
 
-      const nextSelected = selected || chatList[0] || null;
+      const nextSelected = selectedRef.current || chatList[0] || null;
       setSelected(nextSelected);
       if (nextSelected) {
         await loadMessages(nextSelected);
@@ -100,13 +177,72 @@ export default function ChatScreen() {
     } catch (e) {
       setError(e.message || 'Failed to load chat list');
     }
-  }, [loadMessages, selected, token]);
+  }, [loadMessages, token]);
 
   useFocusEffect(
     useCallback(() => {
       loadAll();
     }, [loadAll])
   );
+
+  useEffect(() => {
+    if (!token) return undefined;
+
+    const socket = io(API_BASE, {
+      auth: { token },
+      transports: ['websocket'],
+    });
+
+    socketRef.current = socket;
+
+    const handleReceiveMessage = async (payload) => {
+      const senderId = getSenderId(payload);
+      if (!senderId || senderId === user?.id) {
+        return;
+      }
+
+      const activeChat = selectedRef.current;
+      const otherUserId = getDirectOtherUserId(activeChat, user?.id);
+      const isActiveDirect = activeChat?.chatType === 'direct' && otherUserId === senderId;
+
+      if (isActiveDirect) {
+        await loadMessages(activeChat);
+        return;
+      }
+
+      await refreshChats();
+    };
+
+    const handleDepartmentMessage = async (payload) => {
+      if (payload?.senderId?._id === user?.id || payload?.senderId === user?.id) {
+        return;
+      }
+
+      const activeChat = selectedRef.current;
+      const departmentKey = getDepartmentKey(activeChat, user?.department);
+      const incomingDepartment = payload?.department || '';
+      const isActiveDepartment = activeChat?.chatType === 'department' && departmentKey && departmentKey === incomingDepartment;
+
+      if (isActiveDepartment) {
+        await loadMessages(activeChat);
+        return;
+      }
+
+      await refreshChats();
+    };
+
+    socket.on('receive_message', handleReceiveMessage);
+    socket.on('message_sent', handleReceiveMessage);
+    socket.on('department_message', handleDepartmentMessage);
+
+    return () => {
+      socket.off('receive_message', handleReceiveMessage);
+      socket.off('message_sent', handleReceiveMessage);
+      socket.off('department_message', handleDepartmentMessage);
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [loadMessages, refreshChats, token, user?.department, user?.id]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -180,7 +316,6 @@ export default function ChatScreen() {
 
       setText('');
       await loadMessages(selected);
-      await loadAll();
     } catch (e) {
       setError(e.message || 'Failed to send message');
     } finally {
@@ -190,58 +325,82 @@ export default function ChatScreen() {
 
   if (showConversation && selected) {
     return (
-      <Screen>
-        <View style={styles.conversationTopBar}>
-          <AppButton title="Back" type="ghost" onPress={() => setShowConversation(false)} style={styles.backButton} />
-          <View style={styles.conversationTopInfo}>
-            <Text style={styles.conversationTopTitle}>{chatTitle(selected, user?.id)}</Text>
-            <Text style={styles.conversationTopSubtitle}>Online in Campusly</Text>
+      <View style={styles.conversationRoot}>
+        <View style={styles.conversationBgLayer} />
+
+        <View style={styles.conversationContent}>
+          <View style={styles.conversationTopBar}>
+            <AppButton title="Back" type="ghost" onPress={() => setShowConversation(false)} style={styles.backButton} />
+            <View style={styles.conversationTopInfo}>
+              <Text style={styles.conversationTopTitle}>{chatTitle(selected, user?.id)}</Text>
+              <Text style={styles.conversationTopSubtitle}>Online in Campusly</Text>
+            </View>
+          </View>
+
+          {!!error && <Text style={{ color: colors.danger, marginHorizontal: 16 }}>{error}</Text>}
+
+          <FlatList
+            data={messages}
+            keyExtractor={(item) => item._id}
+            contentContainerStyle={styles.messageListFull}
+            style={styles.messageListSurface}
+            renderItem={({ item }) => {
+              const mine = getSenderId(item) === user?.id;
+              const departmentChat = selected?.chatType === 'department';
+              const senderRole = getSenderRole(item);
+              const senderName = getSenderLabel(item, user?.id);
+              const isTeacherMessage = departmentChat && senderRole === 'teacher';
+              return (
+                <View
+                  style={{
+                    alignSelf: mine ? 'flex-end' : 'flex-start',
+                    backgroundColor: isTeacherMessage
+                      ? '#ede9fe'
+                      : mine
+                        ? '#dcf8c6'
+                        : departmentChat
+                          ? '#f0f9ff'
+                          : '#ffffff',
+                    borderRadius: 12,
+                    paddingHorizontal: 10,
+                    paddingVertical: 8,
+                    marginVertical: 4,
+                    maxWidth: '85%',
+                    borderWidth: isTeacherMessage ? 1 : mine ? 0 : 1,
+                    borderColor: isTeacherMessage ? '#c4b5fd' : mine ? 'transparent' : '#e5e7eb',
+                  }}
+                >
+                  {departmentChat ? (
+                    <View style={{ marginBottom: 4 }}>
+                      <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>{senderName}</Text>
+                      {senderRole === 'teacher' ? (
+                        <View style={styles.teacherBadge}>
+                          <Text style={styles.teacherBadgeText}>TEACHER</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  ) : null}
+                  <Text style={{ color: colors.text }}>{item.message}</Text>
+                  <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 4, textAlign: 'right' }}>
+                    {new Date(item.createdAt).toLocaleTimeString()}
+                  </Text>
+                </View>
+              );
+            }}
+          />
+
+          <View style={styles.composerRow}>
+            <TextInput
+              value={text}
+              onChangeText={setText}
+              placeholder="Type a message"
+              placeholderTextColor={colors.textMuted}
+              style={styles.composerInput}
+            />
+            <AppButton title="Send" onPress={onSend} loading={sending} style={styles.sendButton} />
           </View>
         </View>
-
-        {!!error && <Text style={{ color: colors.danger }}>{error}</Text>}
-
-        <FlatList
-          data={messages}
-          keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.messageListFull}
-          style={{ flex: 1 }}
-          renderItem={({ item }) => {
-            const mine = getSenderId(item) === user?.id;
-            return (
-              <View
-                style={{
-                  alignSelf: mine ? 'flex-end' : 'flex-start',
-                  backgroundColor: mine ? '#dcf8c6' : '#ffffff',
-                  borderRadius: 12,
-                  paddingHorizontal: 10,
-                  paddingVertical: 8,
-                  marginVertical: 4,
-                  maxWidth: '85%',
-                  borderWidth: mine ? 0 : 1,
-                  borderColor: '#e5e7eb',
-                }}
-              >
-                <Text style={{ color: colors.text }}>{item.message}</Text>
-                <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 4, textAlign: 'right' }}>
-                  {new Date(item.createdAt).toLocaleTimeString()}
-                </Text>
-              </View>
-            );
-          }}
-        />
-
-        <View style={styles.composerRow}>
-          <TextInput
-            value={text}
-            onChangeText={setText}
-            placeholder="Type a message"
-            placeholderTextColor={colors.textMuted}
-            style={styles.composerInput}
-          />
-          <AppButton title="Send" onPress={onSend} loading={sending} style={styles.sendButton} />
-        </View>
-      </Screen>
+      </View>
     );
   }
 
@@ -260,7 +419,10 @@ export default function ChatScreen() {
           {filteredChats.map((chat) => (
             <Pressable
               key={chat._id}
-              style={styles.chatRow}
+              style={[
+                styles.chatRow,
+                chat.unreadCount > 0 ? styles.chatRowUnread : null,
+              ]}
               onPress={async () => {
                 setSelected(chat);
                 setShowConversation(true);
@@ -274,6 +436,11 @@ export default function ChatScreen() {
                 <Text style={styles.chatRowTitle}>{chatTitle(chat, user?.id)}</Text>
                 <Text numberOfLines={1} style={styles.chatRowPreview}>{chatPreview(chat)}</Text>
               </View>
+              {chat.unreadCount > 0 ? (
+                <View style={styles.unreadBadge}>
+                  <Text style={styles.unreadBadgeText}>{chat.unreadCount}</Text>
+                </View>
+              ) : null}
             </Pressable>
           ))}
         </Card>
@@ -332,6 +499,10 @@ const styles = StyleSheet.create({
     padding: 10,
     marginTop: 8,
     backgroundColor: '#ffffff',
+  },
+  chatRowUnread: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#60a5fa',
   },
   chatRowActive: {
     borderColor: colors.accent,
@@ -404,12 +575,27 @@ const styles = StyleSheet.create({
     color: '#065f46',
     fontWeight: '700',
   },
+  teacherBadge: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    backgroundColor: '#f3e8ff',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  teacherBadgeText: {
+    color: '#6b21a8',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
   conversationTopBar: {
     marginTop: 20,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     marginBottom: 10,
+    paddingHorizontal: 16,
   },
   backButton: {
     minWidth: 84,
@@ -434,16 +620,20 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   messageListFull: {
-    backgroundColor: '#f5efe6',
-    borderRadius: 12,
-    padding: 10,
-    minHeight: 280,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: 24,
+  },
+  messageListSurface: {
+    flex: 1,
   },
   composerRow: {
     marginTop: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 14,
   },
   composerInput: {
     flex: 1,
@@ -485,5 +675,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#dbeafe',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  unreadBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    backgroundColor: '#2563eb',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unreadBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  conversationRoot: {
+    flex: 1,
+    backgroundColor: '#f5efe6',
+  },
+  conversationBgLayer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#f5efe6',
+  },
+  conversationContent: {
+    flex: 1,
   },
 });
