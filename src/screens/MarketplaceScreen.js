@@ -4,7 +4,7 @@ import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../services/api';
-import { AppButton, AppInput, Card, Heading, Muted, Screen } from '../components/ui';
+import { AppButton, AppInput, Card, Heading, Muted, Screen, useResponsiveLayout } from '../components/ui';
 import { colors } from '../theme/colors';
 
 const initialForm = {
@@ -29,6 +29,7 @@ const categoryAccent = {
 
 export default function MarketplaceScreen() {
   const { token, user } = useAuth();
+  const { isCompact } = useResponsiveLayout();
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
@@ -155,9 +156,9 @@ export default function MarketplaceScreen() {
   return (
     <Screen>
       <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-        <View style={{ marginTop: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <View style={[styles.topRow, isCompact ? styles.topRowCompact : null]}>
           <Heading style={{ color: '#0f172a' }}>Marketplace</Heading>
-          <AppButton title="Create" onPress={() => setShowCreateModal(true)} style={{ minWidth: 96, paddingVertical: 10, paddingHorizontal: 16 }} />
+          <AppButton title="Create" onPress={() => setShowCreateModal(true)} style={isCompact ? styles.actionFullWidth : styles.actionButton} />
         </View>
         <View
           style={{
@@ -235,7 +236,7 @@ export default function MarketplaceScreen() {
               </Text>
               <Muted>Contact: {item.contactInfo}</Muted>
               {canManage ? (
-                <View style={{ flexDirection: 'row', gap: 8 }}>
+                <View style={[styles.manageRow, isCompact ? styles.manageRowCompact : null]}>
                   {item.status !== 'sold' ? <AppButton title="Mark sold" type="ghost" onPress={() => onMarkSold(item._id)} /> : null}
                   <AppButton title="Delete" type="danger" onPress={() => onDelete(item._id)} />
                 </View>
@@ -301,18 +302,18 @@ export default function MarketplaceScreen() {
                 value={createForm.contactInfo}
                 onChangeText={(v) => setCreateForm((p) => ({ ...p, contactInfo: v }))}
               />
-              <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={[styles.modalActionsRow, isCompact ? styles.modalActionsRowCompact : null]}>
                 <AppButton
                   title="Cancel"
                   type="ghost"
-                  style={{ flex: 1 }}
+                  style={isCompact ? styles.actionFullWidth : styles.actionFlex}
                   onPress={() => {
                     setShowCreateModal(false);
                     setCreateForm(initialForm);
                   }}
                   disabled={creating}
                 />
-                <AppButton title="Create listing" style={{ flex: 1 }} onPress={onCreate} loading={creating} />
+                <AppButton title="Create listing" style={isCompact ? styles.actionFullWidth : styles.actionFlex} onPress={onCreate} loading={creating} />
               </View>
             </Card>
           </View>
@@ -321,3 +322,42 @@ export default function MarketplaceScreen() {
     </Screen>
   );
 }
+
+const styles = {
+  topRow: {
+    marginTop: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  topRowCompact: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
+  actionButton: {
+    minWidth: 96,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  actionFullWidth: {
+    width: '100%',
+  },
+  actionFlex: {
+    flex: 1,
+  },
+  manageRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  manageRowCompact: {
+    flexDirection: 'column',
+  },
+  modalActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modalActionsRowCompact: {
+    flexDirection: 'column',
+  },
+};

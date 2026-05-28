@@ -3,7 +3,7 @@ import { Alert, Modal, RefreshControl, ScrollView, Text, View } from 'react-nati
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../services/api';
-import { AppButton, AppInput, Card, Heading, Muted, Screen } from '../components/ui';
+import { AppButton, AppInput, Card, Heading, Muted, Screen, useResponsiveLayout } from '../components/ui';
 import { colors } from '../theme/colors';
 
 const initialCreate = {
@@ -19,6 +19,7 @@ const cardAccentColors = ['#0284c7', '#0ea5e9', '#22c55e', '#f59e0b'];
 
 export default function EventsScreen() {
   const { token, user } = useAuth();
+  const { isCompact } = useResponsiveLayout();
   const [events, setEvents] = useState([]);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
@@ -141,14 +142,10 @@ export default function EventsScreen() {
   return (
     <Screen>
       <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-        <View style={{ marginTop: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <View style={[styles.topRow, isCompact ? styles.topRowCompact : null]}>
           <Heading style={{ color: '#0c4a6e' }}>Events</Heading>
           {canCreate ? (
-            <AppButton
-              title="Create"
-              onPress={() => setShowCreateModal(true)}
-              style={{ minWidth: 86, paddingVertical: 10, paddingHorizontal: 18 }}
-            />
+            <AppButton title="Create" onPress={() => setShowCreateModal(true)} style={isCompact ? styles.actionFullWidth : styles.actionButton} />
           ) : null}
         </View>
         <View
@@ -167,7 +164,7 @@ export default function EventsScreen() {
           <Muted>Find what is happening and join in.</Muted>
         </View>
 
-        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+        <View style={[styles.statsRow, isCompact ? styles.statsRowCompact : null]}>
           <View
             style={{
               flex: 1,
@@ -312,18 +309,18 @@ export default function EventsScreen() {
                   onChangeText={(v) => setCreateForm((p) => ({ ...p, department: v }))}
                 />
               ) : null}
-              <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={[styles.modalActionsRow, isCompact ? styles.modalActionsRowCompact : null]}>
                 <AppButton
                   title="Cancel"
                   type="ghost"
-                  style={{ flex: 1 }}
+                  style={isCompact ? styles.actionFullWidth : styles.actionFlex}
                   onPress={() => {
                     setShowCreateModal(false);
                     setCreateForm(initialCreate);
                   }}
                   disabled={creating}
                 />
-                <AppButton title="Create event" style={{ flex: 1 }} onPress={onCreate} loading={creating} />
+                <AppButton title="Create event" style={isCompact ? styles.actionFullWidth : styles.actionFlex} onPress={onCreate} loading={creating} />
               </View>
             </Card>
           </View>
@@ -332,3 +329,43 @@ export default function EventsScreen() {
     </Screen>
   );
 }
+
+const styles = {
+  topRow: {
+    marginTop: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  topRowCompact: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
+  actionButton: {
+    minWidth: 86,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+  },
+  actionFullWidth: {
+    width: '100%',
+  },
+  actionFlex: {
+    flex: 1,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+  statsRowCompact: {
+    flexDirection: 'column',
+  },
+  modalActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modalActionsRowCompact: {
+    flexDirection: 'column',
+  },
+};

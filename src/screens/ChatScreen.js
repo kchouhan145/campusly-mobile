@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { io } from 'socket.io-client';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../services/api';
-import { AppButton, AppInput, Card, Heading, Muted, Screen } from '../components/ui';
+import { AppButton, AppInput, Card, Heading, Muted, Screen, useResponsiveLayout } from '../components/ui';
 import { API_BASE } from '../services/config';
 import { colors } from '../theme/colors';
 
@@ -68,6 +69,7 @@ function initialsFromTitle(value) {
 
 export default function ChatScreen() {
   const { token, user } = useAuth();
+  const { isCompact } = useResponsiveLayout();
   const [chats, setChats] = useState([]);
   const [people, setPeople] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -325,15 +327,26 @@ export default function ChatScreen() {
 
   if (showConversation && selected) {
     return (
-      <View style={styles.conversationRoot}>
+      <KeyboardAvoidingView
+        style={styles.conversationRoot}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={styles.conversationBgLayer} />
 
         <View style={styles.conversationContent}>
-          <View style={styles.conversationTopBar}>
-            <AppButton title="Back" type="ghost" onPress={() => setShowConversation(false)} style={styles.backButton} />
+          <View style={[styles.conversationTopBar, isCompact ? styles.conversationTopBarCompact : null]}>
+            <Pressable
+              onPress={() => setShowConversation(false)}
+              style={({ pressed }) => [styles.backIconButton, pressed && styles.iconButtonPressed]}
+              hitSlop={10}
+            >
+              <Ionicons name="arrow-back" size={22} color={colors.text} />
+            </Pressable>
             <View style={styles.conversationTopInfo}>
               <Text style={styles.conversationTopTitle}>{chatTitle(selected, user?.id)}</Text>
-              <Text style={styles.conversationTopSubtitle}>Online in Campusly</Text>
+              <Text style={styles.conversationTopSubtitle}>
+                {selected?.chatType === 'department' ? 'Department conversation' : 'Direct conversation'}
+              </Text>
             </View>
           </View>
 
@@ -344,6 +357,7 @@ export default function ChatScreen() {
             keyExtractor={(item) => item._id}
             contentContainerStyle={styles.messageListFull}
             style={styles.messageListSurface}
+            keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => {
               const mine = getSenderId(item) === user?.id;
               const departmentChat = selected?.chatType === 'department';
@@ -389,18 +403,28 @@ export default function ChatScreen() {
             }}
           />
 
-          <View style={styles.composerRow}>
+          <View style={[styles.composerRow, isCompact ? styles.composerRowCompact : null]}>
             <TextInput
               value={text}
               onChangeText={setText}
-              placeholder="Type a message"
+              placeholder="send message"
               placeholderTextColor={colors.textMuted}
               style={styles.composerInput}
             />
-            <AppButton title="Send" onPress={onSend} loading={sending} style={styles.sendButton} />
+            <Pressable
+              onPress={onSend}
+              disabled={sending}
+              style={({ pressed }) => [
+                styles.sendIconButton,
+                pressed && !sending ? styles.iconButtonPressed : null,
+                sending ? styles.sendIconButtonDisabled : null,
+              ]}
+            >
+              <Ionicons name="send" size={18} color="#fff" />
+            </Pressable>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     );
   }
 
@@ -409,7 +433,11 @@ export default function ChatScreen() {
       <Heading style={styles.pageTitle}>Chats</Heading>
       <AppInput label="Search chats" value={search} onChangeText={setSearch} style={styles.searchInput} />
       <View style={{ marginBottom: 8 }}>
-        <AppButton title="Start new conversation" onPress={() => setShowPeopleModal(true)} />
+        <AppButton
+          title="Start new conversation"
+          onPress={() => setShowPeopleModal(true)}
+          style={isCompact ? styles.primaryActionCompact : null}
+        />
       </View>
       {!!error && <Text style={{ color: colors.danger }}>{error}</Text>}
 
@@ -597,9 +625,21 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     paddingHorizontal: 16,
   },
-  backButton: {
-    minWidth: 84,
-    paddingVertical: 10,
+  conversationTopBarCompact: {
+    paddingHorizontal: 12,
+  },
+  backIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconButtonPressed: {
+    opacity: 0.7,
   },
   conversationTopInfo: {
     flex: 1,
@@ -608,6 +648,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: '700',
     fontSize: 16,
+    flexShrink: 1,
   },
   conversationTopSubtitle: {
     color: colors.textMuted,
@@ -630,24 +671,45 @@ const styles = StyleSheet.create({
   composerRow: {
     marginTop: 10,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     gap: 8,
     paddingHorizontal: 16,
     paddingBottom: 14,
+  },
+  composerRowCompact: {
+    gap: 6,
   },
   composerInput: {
     flex: 1,
     backgroundColor: '#ffffff',
     color: colors.text,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 54,
+    minWidth: 0,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#cbd5e1',
+    fontSize: 15,
   },
-  sendButton: {
-    minWidth: 84,
-    paddingVertical: 10,
+  sendIconButton: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  sendIconButtonDisabled: {
+    opacity: 0.6,
+  },
+  primaryActionCompact: {
+    width: '100%',
   },
   modalOverlay: {
     flex: 1,

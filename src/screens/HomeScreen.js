@@ -6,12 +6,13 @@ import messaging from '@react-native-firebase/messaging';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../services/api';
 import { API_BASE } from '../services/config';
-import { AppButton, AppInput, Card, Heading, Muted, Screen } from '../components/ui';
+import { AppButton, AppInput, Card, Heading, Muted, Screen, useResponsiveLayout } from '../components/ui';
 import { colors } from '../theme/colors';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
   const { token, user } = useAuth();
+  const { isCompact } = useResponsiveLayout();
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [announcements, setAnnouncements] = useState([]);
@@ -326,7 +327,7 @@ export default function HomeScreen() {
         <Muted style={{marginTop:10}}>{user?.role || 'member'} {user?.department ? `| ${user.department}` : ''}</Muted>
         {user?.role === 'teacher' ? (
           <View style={{ marginTop: 12 }}>
-            <AppButton title="Create announcement" onPress={() => setShowAnnouncementModal(true)} />
+            <AppButton title="Create announcement" onPress={() => setShowAnnouncementModal(true)} style={isCompact ? { width: '100%' } : null} />
           </View>
         ) : null}
         {!!error && <Text style={{ color: colors.danger, marginTop: 8 }}>{error}</Text>}
@@ -432,11 +433,11 @@ export default function HomeScreen() {
                 value={announcementForm.content}
                 onChangeText={(value) => setAnnouncementForm((prev) => ({ ...prev, content: value }))}
               />
-              <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={[{ flexDirection: 'row', gap: 10 }, isCompact ? { flexDirection: 'column' } : null]}>
                 <AppButton
                   title="Cancel"
                   type="ghost"
-                  style={{ flex: 1 }}
+                  style={isCompact ? { width: '100%' } : { flex: 1 }}
                   onPress={() => {
                     setShowAnnouncementModal(false);
                     setAnnouncementForm({ title: '', content: '' });
@@ -445,7 +446,7 @@ export default function HomeScreen() {
                 />
                 <AppButton
                   title="Post"
-                  style={{ flex: 1 }}
+                  style={isCompact ? { width: '100%' } : { flex: 1 }}
                   onPress={onCreateAnnouncement}
                   loading={creatingAnnouncement}
                 />
@@ -484,11 +485,11 @@ export default function HomeScreen() {
                   style={{ width: '100%', height: 200, borderRadius: 8, marginTop: 12 }}
                 />
               ) : null}
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+              <View style={[{ flexDirection: 'row', gap: 10, marginTop: 16 }, isCompact ? { flexDirection: 'column' } : null]}>
                 <AppButton
                   title="Close"
                   type="ghost"
-                  style={{ flex: 1 }}
+                  style={isCompact ? { width: '100%' } : { flex: 1 }}
                   onPress={() => {
                     setShowAnnouncementDetailsModal(false);
                     setSelectedAnnouncement(null);
@@ -498,7 +499,7 @@ export default function HomeScreen() {
                   <AppButton
                     title="Delete"
                     type="danger"
-                    style={{ flex: 1 }}
+                    style={isCompact ? { width: '100%' } : { flex: 1 }}
                     onPress={() => {
                       onDeleteAnnouncement(selectedAnnouncement._id);
                       setShowAnnouncementDetailsModal(false);
@@ -538,11 +539,11 @@ export default function HomeScreen() {
               <Text style={{ color: colors.text, marginTop: 12, lineHeight: 22 }}>
                 {selectedEvent?.description || 'No description available.'}
               </Text>
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+              <View style={[{ flexDirection: 'row', gap: 10, marginTop: 16 }, isCompact ? { flexDirection: 'column' } : null]}>
                 <AppButton
                   title="Close"
                   type="ghost"
-                  style={{ flex: 1 }}
+                  style={isCompact ? { width: '100%' } : { flex: 1 }}
                   onPress={() => {
                     setShowEventDetailsModal(false);
                     setSelectedEvent(null);
@@ -552,7 +553,7 @@ export default function HomeScreen() {
                   <AppButton
                     title="Delete"
                     type="danger"
-                    style={{ flex: 1 }}
+                    style={isCompact ? { width: '100%' } : { flex: 1 }}
                     onPress={() => {
                       onDeleteEvent(selectedEvent._id);
                       setShowEventDetailsModal(false);

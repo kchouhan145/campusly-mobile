@@ -1,10 +1,12 @@
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { ActivityIndicator, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme/colors';
+import StartupSplash from '../components/StartupSplash';
 import AuthScreen from '../screens/AuthScreen';
 import HomeScreen from '../screens/HomeScreen';
 import EventsScreen from '../screens/EventsScreen';
@@ -51,6 +53,8 @@ function AppTabs() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border },
+        tabBarLabelStyle: { fontSize: 10 },
+        tabBarItemStyle: { paddingVertical: 2 },
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarIcon: ({ focused, color, size }) => (
@@ -87,13 +91,15 @@ function AuthStack() {
 
 export default function RootNavigator() {
   const { token, loading } = useAuth();
+  const [splashReady, setSplashReady] = useState(false);
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={colors.accent} size="large" />
-      </View>
-    );
+  useEffect(() => {
+    const timer = setTimeout(() => setSplashReady(true), 5000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading || !splashReady) {
+    return <StartupSplash />;
   }
 
   return (

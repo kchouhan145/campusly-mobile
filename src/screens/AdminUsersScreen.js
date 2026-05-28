@@ -4,7 +4,7 @@ import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../services/api';
-import { AppButton, AppInput, Card, Heading, Muted, Screen } from '../components/ui';
+import { AppButton, AppInput, Card, Heading, Muted, Screen, useResponsiveLayout } from '../components/ui';
 import { colors } from '../theme/colors';
 
 function getInitials(name, username) {
@@ -18,6 +18,7 @@ function getInitials(name, username) {
 
 export default function AdminUsersScreen() {
   const { token, user } = useAuth();
+  const { isCompact } = useResponsiveLayout();
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
@@ -119,7 +120,7 @@ export default function AdminUsersScreen() {
         </View>
 
         <Card style={styles.summaryCard}>
-          <View style={styles.summaryRow}>
+          <View style={[styles.summaryRow, isCompact ? styles.summaryRowCompact : null]}>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryValue}>{totalUsers}</Text>
               <Muted>Total</Muted>
@@ -162,7 +163,7 @@ export default function AdminUsersScreen() {
               <Text style={styles.metaChip}>{item.department || 'N/A'}</Text>
             </View>
 
-            <View style={styles.dropdownRow}>
+            <View style={[styles.dropdownRow, isCompact ? styles.dropdownRowCompact : null]}>
               <View style={styles.dropdownBlock}>
                 <Text style={styles.dropdownLabel}>Role</Text>
                 <View style={styles.pickerWrap}>
@@ -204,8 +205,8 @@ export default function AdminUsersScreen() {
               </View>
             </View>
 
-            <View style={styles.actionsRow}>
-              <AppButton title="Delete" type="danger" style={styles.actionButton} onPress={() => onDelete(item._id)} />
+            <View style={[styles.actionsRow, isCompact ? styles.actionsRowCompact : null]}>
+              <AppButton title="Delete" type="danger" style={isCompact ? styles.actionButtonCompact : styles.actionButton} onPress={() => onDelete(item._id)} />
             </View>
           </Card>
         ))}
@@ -229,6 +230,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 8,
+  },
+  summaryRowCompact: {
+    flexDirection: 'column',
   },
   summaryItem: {
     flex: 1,
@@ -295,10 +299,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
+  actionsRowCompact: {
+    flexDirection: 'column',
+  },
   dropdownRow: {
     marginTop: 10,
     flexDirection: 'row',
     gap: 10,
+  },
+  dropdownRowCompact: {
+    flexDirection: 'column',
   },
   dropdownBlock: {
     flex: 1,
@@ -321,5 +331,8 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
+  },
+  actionButtonCompact: {
+    width: '100%',
   },
 });

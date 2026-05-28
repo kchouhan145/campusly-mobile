@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../services/api';
-import { AppButton, Card, Heading, Muted, Screen } from '../components/ui';
+import { AppButton, Card, Heading, Muted, Screen, useResponsiveLayout } from '../components/ui';
 import { colors } from '../theme/colors';
 
 function getInitials(name, username) {
@@ -46,6 +46,7 @@ function getRoleTheme(role) {
 
 export default function ProfileScreen() {
   const { token, user, refreshMe, logout } = useAuth();
+  const { isCompact } = useResponsiveLayout();
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
@@ -81,7 +82,7 @@ export default function ProfileScreen() {
         </View>
 
         <Card style={styles.heroCard}>
-          <View style={styles.heroRow}>
+          <View style={[styles.heroRow, isCompact ? styles.heroRowCompact : null]}>
             <View style={[styles.avatarCircle, { backgroundColor: roleTheme.avatarBg }]}>
               <Text style={[styles.avatarText, { color: roleTheme.avatarText }]}>{getInitials(user?.name, user?.username)}</Text>
             </View>
@@ -158,6 +159,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  heroRowCompact: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
   },
   avatarCircle: {
     width: 56,

@@ -3,7 +3,7 @@ import { Alert, Modal, RefreshControl, ScrollView, Text, View } from 'react-nati
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../services/api';
-import { AppButton, AppInput, Card, Heading, Muted, Screen } from '../components/ui';
+import { AppButton, AppInput, Card, Heading, Muted, Screen, useResponsiveLayout } from '../components/ui';
 import { colors } from '../theme/colors';
 
 const initialForm = {
@@ -16,6 +16,7 @@ const initialForm = {
 
 export default function LostFoundScreen() {
   const { token, user } = useAuth();
+  const { isCompact } = useResponsiveLayout();
   const [posts, setPosts] = useState([]);
   const [search, setSearch] = useState('');
   const [type, setType] = useState('all');
@@ -126,9 +127,9 @@ export default function LostFoundScreen() {
   return (
     <Screen>
       <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-        <View style={{ marginTop: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <View style={[styles.topRow, isCompact ? styles.topRowCompact : null]}>
           <Heading style={{ color: '#0f172a' }}>Lost & Found</Heading>
-          <AppButton title="Create" onPress={() => setShowCreateModal(true)} style={{ minWidth: 96, paddingVertical: 10, paddingHorizontal: 16 }} />
+          <AppButton title="Create" onPress={() => setShowCreateModal(true)} style={isCompact ? styles.actionFullWidth : styles.actionButton} />
         </View>
         <View
           style={{
@@ -146,7 +147,7 @@ export default function LostFoundScreen() {
           <Muted>Quickly report items and help others recover them.</Muted>
         </View>
         <AppInput style={{marginTop:10}} label="Search" value={search} onChangeText={setSearch} />
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 10 }}>
+        <View style={styles.filterRow}>
           <AppButton title="All" type={type === 'all' ? 'primary' : 'ghost'} style={{ flex: 1 }} onPress={() => setType('all')} />
           <AppButton title="Lost" type={type === 'lost' ? 'primary' : 'ghost'} style={{ flex: 1 }} onPress={() => setType('lost')} />
           <AppButton title="Found" type={type === 'found' ? 'primary' : 'ghost'} style={{ flex: 1 }} onPress={() => setType('found')} />
@@ -203,7 +204,7 @@ export default function LostFoundScreen() {
               <Heading size="sm">Create post</Heading>
               <View style={{ gap: 6 }}>
                 <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600' }}>Post type</Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
+                <View style={styles.filterRow}>
                   <AppButton
                     title="Lost"
                     type={createForm.type === 'lost' ? 'primary' : 'ghost'}
@@ -231,18 +232,18 @@ export default function LostFoundScreen() {
                 value={createForm.contactInfo}
                 onChangeText={(v) => setCreateForm((p) => ({ ...p, contactInfo: v }))}
               />
-              <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={[styles.modalActionsRow, isCompact ? styles.modalActionsRowCompact : null]}>
                 <AppButton
                   title="Cancel"
                   type="ghost"
-                  style={{ flex: 1 }}
+                  style={isCompact ? styles.actionFullWidth : styles.actionFlex}
                   onPress={() => {
                     setShowCreateModal(false);
                     setCreateForm(initialForm);
                   }}
                   disabled={creating}
                 />
-                <AppButton title="Create post" style={{ flex: 1 }} onPress={onCreate} loading={creating} />
+                <AppButton title="Create post" style={isCompact ? styles.actionFullWidth : styles.actionFlex} onPress={onCreate} loading={creating} />
               </View>
             </Card>
           </View>
@@ -251,3 +252,42 @@ export default function LostFoundScreen() {
     </Screen>
   );
 }
+
+const styles = {
+  topRow: {
+    marginTop: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  topRowCompact: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
+  actionButton: {
+    minWidth: 96,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  actionFullWidth: {
+    width: '100%',
+  },
+  actionFlex: {
+    flex: 1,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 10,
+    flexWrap: 'nowrap',
+  },
+  modalActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modalActionsRowCompact: {
+    flexDirection: 'column',
+  },
+};
