@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { colors } from '../theme/colors';
 
 export function Screen({ children }) {
@@ -62,6 +63,46 @@ export function AppButton({ title, onPress, type = 'primary', disabled, loading,
     >
       {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={[styles.btnText, width < 360 ? styles.btnTextCompact : null]}>{title}</Text>}
     </Pressable>
+  );
+}
+
+export function AppSelect({
+  label,
+  value,
+  onValueChange,
+  items,
+  placeholder = 'Select an option',
+  style,
+  pickerStyle,
+  wrapperStyle,
+  dropdownIconColor = colors.textMuted,
+}) {
+  const { width } = useWindowDimensions();
+  const compact = width < 360;
+
+  return (
+    <View style={[styles.fieldWrap, style]}>
+      {label ? <Text style={styles.label}>{label}</Text> : null}
+      <View style={[styles.selectWrap, compact ? styles.selectWrapCompact : null, wrapperStyle]}>
+        <Picker
+          selectedValue={value}
+          onValueChange={onValueChange}
+          dropdownIconColor={dropdownIconColor}
+          mode={Platform.OS === 'android' ? 'dropdown' : 'dialog'}
+          style={[styles.select, compact ? styles.selectCompact : null, pickerStyle]}
+        >
+          <Picker.Item label={placeholder} value="" color={colors.textMuted} />
+          {items.map((item) => (
+            <Picker.Item
+              key={String(item.value)}
+              label={item.label}
+              value={item.value}
+              color={colors.text}
+            />
+          ))}
+        </Picker>
+      </View>
+    </View>
   );
 }
 
@@ -146,6 +187,24 @@ const styles = StyleSheet.create({
   },
   fieldWrap: {
     gap: 6,
+  },
+  selectWrap: {
+    backgroundColor: colors.cardSoft,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  selectWrapCompact: {
+    borderRadius: 9,
+  },
+  select: {
+    color: colors.text,
+    minHeight: 48,
+    width: '100%',
+  },
+  selectCompact: {
+    minHeight: 46,
   },
   label: {
     color: colors.text,

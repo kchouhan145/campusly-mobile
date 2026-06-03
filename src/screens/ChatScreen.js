@@ -1,70 +1,92 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { io } from 'socket.io-client';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useAuth } from '../context/AuthContext';
-import { apiRequest } from '../services/api';
-import { AppButton, AppInput, Card, Heading, Muted, Screen, useResponsiveLayout } from '../components/ui';
-import { API_BASE } from '../services/config';
-import { colors } from '../theme/colors';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Image,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import { io } from "socket.io-client";
+import Ionicons from "react-native-vector-icons/Ionicons";
+import { useAuth } from "../context/AuthContext";
+import { apiRequest } from "../services/api";
+import {
+  AppButton,
+  AppInput,
+  Card,
+  Heading,
+  Muted,
+  Screen,
+  useResponsiveLayout,
+} from "../components/ui";
+// import Header from '../components/Header';
+import { API_BASE } from "../services/config";
+import { colors } from "../theme/colors";
 
 function getSenderId(value) {
-  return value?.senderId?._id || value?.senderId || '';
+  return value?.senderId?._id || value?.senderId || "";
 }
 
 function chatTitle(chat, myId) {
-  if (chat.chatType === 'department') return `${chat.department} Department`;
+  if (chat.chatType === "department") return `${chat.department} Department`;
   if (chat.senderId?._id === myId || chat.senderId === myId) {
-    return chat.receiverId?.name || chat.receiverId?.username || 'Direct';
+    return chat.receiverId?.name || chat.receiverId?.username || "Direct";
   }
-  return chat.senderId?.name || chat.senderId?.username || 'Direct';
+  return chat.senderId?.name || chat.senderId?.username || "Direct";
 }
 
 function chatPreview(chat) {
-  return chat?.message || 'No messages yet';
+  return chat?.message || "No messages yet";
 }
 
 function getDirectOtherUserId(chat, myId) {
-  if (!chat) return '';
+  if (!chat) return "";
   if (chat.directUser?._id) {
     return chat.directUser._id;
   }
 
   if (chat.senderId?._id === myId || chat.senderId === myId) {
-    return chat.receiverId?._id || chat.receiverId || '';
+    return chat.receiverId?._id || chat.receiverId || "";
   }
 
-  return chat.senderId?._id || chat.senderId || '';
+  return chat.senderId?._id || chat.senderId || "";
 }
 
 function getDepartmentKey(chat, userDepartment) {
-  return chat?.department || userDepartment || '';
+  return chat?.department || userDepartment || "";
 }
 
 function getSenderLabel(message, myId) {
   const sender = message?.senderId || {};
   if ((sender?._id || sender) === myId) {
-    return 'You';
+    return "You";
   }
 
-  return sender?.name || sender?.username || 'Member';
+  return sender?.name || sender?.username || "Member";
 }
 
 function getSenderRole(message) {
-  return message?.senderId?.role || 'student';
+  return message?.senderId?.role || "student";
 }
 
 function initialsFromTitle(value) {
-  const text = String(value || '').trim();
-  if (!text) return 'C';
+  const text = String(value || "").trim();
+  if (!text) return "C";
 
-  const words = text.split(' ').filter(Boolean);
+  const words = text.split(" ").filter(Boolean);
   if (words.length === 1) {
     return words[0].slice(0, 2).toUpperCase();
   }
 
-  return `${words[0][0] || ''}${words[1][0] || ''}`.toUpperCase();
+  return `${words[0][0] || ""}${words[1][0] || ""}`.toUpperCase();
 }
 
 export default function ChatScreen() {
@@ -74,13 +96,13 @@ export default function ChatScreen() {
   const [people, setPeople] = useState([]);
   const [messages, setMessages] = useState([]);
   const [selected, setSelected] = useState(null);
-  const [text, setText] = useState('');
-  const [search, setSearch] = useState('');
-  const [error, setError] = useState('');
+  const [text, setText] = useState("");
+  const [search, setSearch] = useState("");
+  const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
   const [showPeopleModal, setShowPeopleModal] = useState(false);
-  const [peopleSearch, setPeopleSearch] = useState('');
+  const [peopleSearch, setPeopleSearch] = useState("");
   const [showConversation, setShowConversation] = useState(false);
   const selectedRef = useRef(null);
   const socketRef = useRef(null);
@@ -92,7 +114,7 @@ export default function ChatScreen() {
   const refreshChats = useCallback(async () => {
     if (!token) return [];
 
-    const chatData = await apiRequest('/api/messages/chats', { token });
+    const chatData = await apiRequest("/api/messages/chats", { token });
     const chatList = Array.isArray(chatData.chats) ? chatData.chats : [];
     setChats(chatList);
     return chatList;
@@ -102,9 +124,9 @@ export default function ChatScreen() {
     async (chat) => {
       if (!chat || !token) return;
 
-      if (chat.chatType === 'department') {
-        await apiRequest('/api/messages/department/read', {
-          method: 'PATCH',
+      if (chat.chatType === "department") {
+        await apiRequest("/api/messages/department/read", {
+          method: "PATCH",
           token,
         });
         return;
@@ -114,11 +136,11 @@ export default function ChatScreen() {
       if (!otherUserId) return;
 
       await apiRequest(`/api/messages/${otherUserId}/read`, {
-        method: 'PATCH',
+        method: "PATCH",
         token,
       });
     },
-    [token, user?.id]
+    [token, user?.id],
   );
 
   const loadMessages = useCallback(
@@ -126,25 +148,34 @@ export default function ChatScreen() {
       if (!chat || !token) return;
 
       try {
-        if (chat.chatType === 'department') {
-          const dep = encodeURIComponent(chat.department || user?.department || '');
-          const data = await apiRequest(`/api/messages/department/messages?department=${dep}`, { token });
+        if (chat.chatType === "department") {
+          const dep = encodeURIComponent(
+            chat.department || user?.department || "",
+          );
+          const data = await apiRequest(
+            `/api/messages/department/messages?department=${dep}`,
+            { token },
+          );
           setMessages(Array.isArray(data.messages) ? data.messages : []);
         } else {
           const otherUserId =
             chat.directUser?._id ||
-            (chat.senderId?._id === user?.id ? chat.receiverId?._id || chat.receiverId : chat.senderId?._id || chat.senderId);
+            (chat.senderId?._id === user?.id
+              ? chat.receiverId?._id || chat.receiverId
+              : chat.senderId?._id || chat.senderId);
 
           if (!otherUserId) {
             setMessages([]);
             return;
           }
 
-          const data = await apiRequest(`/api/messages/${otherUserId}`, { token });
+          const data = await apiRequest(`/api/messages/${otherUserId}`, {
+            token,
+          });
           setMessages(Array.isArray(data.messages) ? data.messages : []);
         }
       } catch (e) {
-        setError(e.message || 'Failed to load messages');
+        setError(e.message || "Failed to load messages");
         return;
       }
 
@@ -152,19 +183,19 @@ export default function ChatScreen() {
         await markChatAsRead(chat);
         await refreshChats();
       } catch (e) {
-        setError(e.message || 'Failed to update read status');
+        setError(e.message || "Failed to update read status");
       }
     },
-    [markChatAsRead, refreshChats, token, user?.department, user?.id]
+    [markChatAsRead, refreshChats, token, user?.department, user?.id],
   );
 
   const loadAll = useCallback(async () => {
     if (!token) return;
-    setError('');
+    setError("");
     try {
       const [chatData, peopleData] = await Promise.all([
-        apiRequest('/api/messages/chats', { token }),
-        apiRequest('/api/users', { token }),
+        apiRequest("/api/messages/chats", { token }),
+        apiRequest("/api/users", { token }),
       ]);
 
       const chatList = Array.isArray(chatData.chats) ? chatData.chats : [];
@@ -177,14 +208,14 @@ export default function ChatScreen() {
         await loadMessages(nextSelected);
       }
     } catch (e) {
-      setError(e.message || 'Failed to load chat list');
+      setError(e.message || "Failed to load chat list");
     }
   }, [loadMessages, token]);
 
   useFocusEffect(
     useCallback(() => {
       loadAll();
-    }, [loadAll])
+    }, [loadAll]),
   );
 
   useEffect(() => {
@@ -192,7 +223,7 @@ export default function ChatScreen() {
 
     const socket = io(API_BASE, {
       auth: { token },
-      transports: ['websocket'],
+      transports: ["websocket"],
     });
 
     socketRef.current = socket;
@@ -205,7 +236,8 @@ export default function ChatScreen() {
 
       const activeChat = selectedRef.current;
       const otherUserId = getDirectOtherUserId(activeChat, user?.id);
-      const isActiveDirect = activeChat?.chatType === 'direct' && otherUserId === senderId;
+      const isActiveDirect =
+        activeChat?.chatType === "direct" && otherUserId === senderId;
 
       if (isActiveDirect) {
         await loadMessages(activeChat);
@@ -216,14 +248,20 @@ export default function ChatScreen() {
     };
 
     const handleDepartmentMessage = async (payload) => {
-      if (payload?.senderId?._id === user?.id || payload?.senderId === user?.id) {
+      if (
+        payload?.senderId?._id === user?.id ||
+        payload?.senderId === user?.id
+      ) {
         return;
       }
 
       const activeChat = selectedRef.current;
       const departmentKey = getDepartmentKey(activeChat, user?.department);
-      const incomingDepartment = payload?.department || '';
-      const isActiveDepartment = activeChat?.chatType === 'department' && departmentKey && departmentKey === incomingDepartment;
+      const incomingDepartment = payload?.department || "";
+      const isActiveDepartment =
+        activeChat?.chatType === "department" &&
+        departmentKey &&
+        departmentKey === incomingDepartment;
 
       if (isActiveDepartment) {
         await loadMessages(activeChat);
@@ -233,14 +271,14 @@ export default function ChatScreen() {
       await refreshChats();
     };
 
-    socket.on('receive_message', handleReceiveMessage);
-    socket.on('message_sent', handleReceiveMessage);
-    socket.on('department_message', handleDepartmentMessage);
+    socket.on("receive_message", handleReceiveMessage);
+    socket.on("message_sent", handleReceiveMessage);
+    socket.on("department_message", handleDepartmentMessage);
 
     return () => {
-      socket.off('receive_message', handleReceiveMessage);
-      socket.off('message_sent', handleReceiveMessage);
-      socket.off('department_message', handleDepartmentMessage);
+      socket.off("receive_message", handleReceiveMessage);
+      socket.off("message_sent", handleReceiveMessage);
+      socket.off("department_message", handleDepartmentMessage);
       socket.disconnect();
       socketRef.current = null;
     };
@@ -257,21 +295,23 @@ export default function ChatScreen() {
     if (!q) return chats;
     return chats.filter((chat) => {
       const title = chatTitle(chat, user?.id).toLowerCase();
-      return title.includes(q) || (chat.message || '').toLowerCase().includes(q);
+      return (
+        title.includes(q) || (chat.message || "").toLowerCase().includes(q)
+      );
     });
   }, [chats, search, user?.id]);
 
   const onOpenPerson = async (person) => {
     const direct = {
       _id: `user:${person._id}`,
-      chatType: 'direct',
+      chatType: "direct",
       directUser: person,
       senderId: { _id: user?.id, name: user?.name, username: user?.username },
       receiverId: person,
     };
     setSelected(direct);
     setShowPeopleModal(false);
-    setPeopleSearch('');
+    setPeopleSearch("");
     setShowConversation(true);
     await loadMessages(direct);
   };
@@ -279,22 +319,26 @@ export default function ChatScreen() {
   const filteredPeople = useMemo(() => {
     const q = peopleSearch.toLowerCase().trim();
     if (!q) return people;
-    return people.filter((person) => `${person.name} ${person.username} ${person.email}`.toLowerCase().includes(q));
+    return people.filter((person) =>
+      `${person.name} ${person.username} ${person.email}`
+        .toLowerCase()
+        .includes(q),
+    );
   }, [people, peopleSearch]);
 
   const onSend = async () => {
     if (!selected || !text.trim()) return;
 
-    setError('');
+    setError("");
     setSending(true);
     try {
-      if (selected.chatType === 'department') {
-        await apiRequest('/api/messages/department', {
-          method: 'POST',
+      if (selected.chatType === "department") {
+        await apiRequest("/api/messages/department", {
+          method: "POST",
           token,
           body: {
             message: text,
-            type: 'text',
+            type: "text",
             department: selected.department || user?.department,
           },
         });
@@ -305,21 +349,21 @@ export default function ChatScreen() {
             ? selected.receiverId?._id || selected.receiverId
             : selected.senderId?._id || selected.senderId);
 
-        await apiRequest('/api/messages', {
-          method: 'POST',
+        await apiRequest("/api/messages", {
+          method: "POST",
           token,
           body: {
             receiverId: otherUserId,
             message: text,
-            type: 'text',
+            type: "text",
           },
         });
       }
 
-      setText('');
+      setText("");
       await loadMessages(selected);
     } catch (e) {
-      setError(e.message || 'Failed to send message');
+      setError(e.message || "Failed to send message");
     } finally {
       setSending(false);
     }
@@ -329,28 +373,44 @@ export default function ChatScreen() {
     return (
       <KeyboardAvoidingView
         style={styles.conversationRoot}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <View style={styles.conversationBgLayer} />
 
         <View style={styles.conversationContent}>
-          <View style={[styles.conversationTopBar, isCompact ? styles.conversationTopBarCompact : null]}>
+          <View
+            style={[
+              styles.conversationTopBar,
+              isCompact ? styles.conversationTopBarCompact : null,
+            ]}
+          >
             <Pressable
               onPress={() => setShowConversation(false)}
-              style={({ pressed }) => [styles.backIconButton, pressed && styles.iconButtonPressed]}
+              style={({ pressed }) => [
+                styles.backIconButton,
+                pressed && styles.iconButtonPressed,
+              ]}
               hitSlop={10}
             >
               <Ionicons name="arrow-back" size={22} color={colors.text} />
             </Pressable>
             <View style={styles.conversationTopInfo}>
-              <Text style={styles.conversationTopTitle}>{chatTitle(selected, user?.id)}</Text>
+              <Text style={styles.conversationTopTitle}>
+                {chatTitle(selected, user?.id)}
+              </Text>
               <Text style={styles.conversationTopSubtitle}>
-                {selected?.chatType === 'department' ? 'Department conversation' : 'Direct conversation'}
+                {selected?.chatType === "department"
+                  ? "Department conversation"
+                  : "Direct conversation"}
               </Text>
             </View>
           </View>
 
-          {!!error && <Text style={{ color: colors.danger, marginHorizontal: 16 }}>{error}</Text>}
+          {!!error && (
+            <Text style={{ color: colors.danger, marginHorizontal: 16 }}>
+              {error}
+            </Text>
+          )}
 
           <FlatList
             data={messages}
@@ -360,34 +420,47 @@ export default function ChatScreen() {
             keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => {
               const mine = getSenderId(item) === user?.id;
-              const departmentChat = selected?.chatType === 'department';
+              const departmentChat = selected?.chatType === "department";
               const senderRole = getSenderRole(item);
               const senderName = getSenderLabel(item, user?.id);
-              const isTeacherMessage = departmentChat && senderRole === 'teacher';
+              const isTeacherMessage =
+                departmentChat && senderRole === "teacher";
               return (
                 <View
                   style={{
-                    alignSelf: mine ? 'flex-end' : 'flex-start',
+                    alignSelf: mine ? "flex-end" : "flex-start",
                     backgroundColor: isTeacherMessage
-                      ? '#ede9fe'
+                      ? "#ede9fe"
                       : mine
-                        ? '#dcf8c6'
+                        ? "#dcf8c6"
                         : departmentChat
-                          ? '#f0f9ff'
-                          : '#ffffff',
+                          ? "#f0f9ff"
+                          : "#ffffff",
                     borderRadius: 12,
                     paddingHorizontal: 10,
                     paddingVertical: 8,
                     marginVertical: 4,
-                    maxWidth: '85%',
+                    maxWidth: "85%",
                     borderWidth: isTeacherMessage ? 1 : mine ? 0 : 1,
-                    borderColor: isTeacherMessage ? '#c4b5fd' : mine ? 'transparent' : '#e5e7eb',
+                    borderColor: isTeacherMessage
+                      ? "#c4b5fd"
+                      : mine
+                        ? "transparent"
+                        : "#e5e7eb",
                   }}
                 >
                   {departmentChat ? (
                     <View style={{ marginBottom: 4 }}>
-                      <Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>{senderName}</Text>
-                      {senderRole === 'teacher' ? (
+                      <Text
+                        style={{
+                          color: colors.text,
+                          fontSize: 12,
+                          fontWeight: "700",
+                        }}
+                      >
+                        {senderName}
+                      </Text>
+                      {senderRole === "teacher" ? (
                         <View style={styles.teacherBadge}>
                           <Text style={styles.teacherBadgeText}>TEACHER</Text>
                         </View>
@@ -395,7 +468,14 @@ export default function ChatScreen() {
                     </View>
                   ) : null}
                   <Text style={{ color: colors.text }}>{item.message}</Text>
-                  <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 4, textAlign: 'right' }}>
+                  <Text
+                    style={{
+                      color: colors.textMuted,
+                      fontSize: 11,
+                      marginTop: 4,
+                      textAlign: "right",
+                    }}
+                  >
                     {new Date(item.createdAt).toLocaleTimeString()}
                   </Text>
                 </View>
@@ -403,7 +483,12 @@ export default function ChatScreen() {
             }}
           />
 
-          <View style={[styles.composerRow, isCompact ? styles.composerRowCompact : null]}>
+          <View
+            style={[
+              styles.composerRow,
+              isCompact ? styles.composerRowCompact : null,
+            ]}
+          >
             <TextInput
               value={text}
               onChangeText={setText}
@@ -430,20 +515,69 @@ export default function ChatScreen() {
 
   return (
     <Screen>
-      <Heading style={styles.pageTitle}>Chats</Heading>
-      <AppInput label="Search chats" value={search} onChangeText={setSearch} style={styles.searchInput} />
-      <View style={{ marginBottom: 8 }}>
-        <AppButton
-          title="Start new conversation"
-          onPress={() => setShowPeopleModal(true)}
-          style={isCompact ? styles.primaryActionCompact : null}
-        />
+      <View style={styles.topBar}>
+        {/* <Pressable style={styles.iconButton} onPress={() => {}}>
+            <Ionicons name="menu-outline" size={22} color={colors.text} />
+          </Pressable> */}
+
+        <View style={styles.brandBlock}>
+          <View style={styles.brandMark}>
+            <Image
+              source={require("../../assets/icon.png")}
+              style={styles.brandMarkImage}
+              resizeMode="contain"
+            />
+          </View>
+          <View>
+            <Text style={styles.brandTitle}>Campusly</Text>
+            <Text style={styles.brandSubtitle}>Chats</Text>
+          </View>
+        </View>
+
+        {/* <Pressable style={styles.iconButton} onPress={() => {}}>
+            <Ionicons name="notifications-outline" size={20} color={colors.text} />
+          </Pressable> */}
       </View>
+
+      <AppInput
+        label="Search"
+        value={search}
+        onChangeText={setSearch}
+        style={styles.searchInput}
+      />
+
+      <View style={styles.peopleRow}>
+        {people.slice(0, 4).map((person) => (
+          <Pressable
+            key={person._id}
+            style={styles.personAvatarWrap}
+            onPress={() => onOpenPerson(person)}
+          >
+            <View style={styles.personAvatar}>
+              <Text style={styles.avatarText}>
+                {initialsFromTitle(person.name || person.username)}
+              </Text>
+            </View>
+            <Text numberOfLines={1} style={styles.personName}>
+              {person.name || person.username}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
       {!!error && <Text style={{ color: colors.danger }}>{error}</Text>}
 
-      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-        <Card>
-          <Heading size="sm">Recent chats</Heading>
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        contentContainerStyle={styles.scrollContent}
+      >
+        <Card style={styles.inboxCard}>
+          <View style={styles.inboxHeader}>
+            <Heading size="sm">Recent chats</Heading>
+            <Muted>{filteredChats.length} conversations</Muted>
+          </View>
           {filteredChats.map((chat) => (
             <Pressable
               key={chat._id}
@@ -457,12 +591,25 @@ export default function ChatScreen() {
                 await loadMessages(chat);
               }}
             >
-              <View style={[styles.avatarCircle, chat.chatType === 'department' ? styles.departmentAvatar : null]}>
-                <Text style={styles.avatarText}>{initialsFromTitle(chatTitle(chat, user?.id))}</Text>
+              <View
+                style={[
+                  styles.avatarCircle,
+                  chat.chatType === "department"
+                    ? styles.departmentAvatar
+                    : null,
+                ]}
+              >
+                <Text style={styles.avatarText}>
+                  {initialsFromTitle(chatTitle(chat, user?.id))}
+                </Text>
               </View>
               <View style={styles.chatRowContent}>
-                <Text style={styles.chatRowTitle}>{chatTitle(chat, user?.id)}</Text>
-                <Text numberOfLines={1} style={styles.chatRowPreview}>{chatPreview(chat)}</Text>
+                <Text style={styles.chatRowTitle}>
+                  {chatTitle(chat, user?.id)}
+                </Text>
+                <Text numberOfLines={1} style={styles.chatRowPreview}>
+                  {chatPreview(chat)}
+                </Text>
               </View>
               {chat.unreadCount > 0 ? (
                 <View style={styles.unreadBadge}>
@@ -472,6 +619,14 @@ export default function ChatScreen() {
             </Pressable>
           ))}
         </Card>
+
+        <View style={styles.newMessageWrap}>
+          <AppButton
+            title="New Message"
+            onPress={() => setShowPeopleModal(true)}
+            style={styles.newMessageButton}
+          />
+        </View>
 
         <View style={{ height: 20 }} />
       </ScrollView>
@@ -485,23 +640,41 @@ export default function ChatScreen() {
         <View style={styles.modalOverlay}>
           <Card style={styles.peopleModalCard}>
             <Heading size="sm">Start new conversation</Heading>
-            <AppInput label="Search people" value={peopleSearch} onChangeText={setPeopleSearch} />
+            <AppInput
+              label="Search people"
+              value={peopleSearch}
+              onChangeText={setPeopleSearch}
+            />
             <ScrollView style={{ maxHeight: 320 }}>
               {filteredPeople.map((person) => (
-                <Pressable key={person._id} style={styles.modalPersonRow} onPress={() => onOpenPerson(person)}>
+                <Pressable
+                  key={person._id}
+                  style={styles.modalPersonRow}
+                  onPress={() => onOpenPerson(person)}
+                >
                   <View style={styles.modalPersonAvatar}>
-                    <Text style={styles.avatarText}>{initialsFromTitle(person.name || person.username)}</Text>
+                    <Text style={styles.avatarText}>
+                      {initialsFromTitle(person.name || person.username)}
+                    </Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.chatRowTitle}>{person.name}</Text>
-                    <Text style={styles.chatRowPreview}>@{person.username}</Text>
+                    <Text style={styles.chatRowPreview}>
+                      @{person.username}
+                    </Text>
                   </View>
                 </Pressable>
               ))}
-              {filteredPeople.length === 0 ? <Muted>No people found.</Muted> : null}
+              {filteredPeople.length === 0 ? (
+                <Muted>No people found.</Muted>
+              ) : null}
             </ScrollView>
             <View style={{ marginTop: 10 }}>
-              <AppButton title="Close" type="ghost" onPress={() => setShowPeopleModal(false)} />
+              <AppButton
+                title="Close"
+                type="ghost"
+                onPress={() => setShowPeopleModal(false)}
+              />
             </View>
           </Card>
         </View>
@@ -511,52 +684,116 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  pageTitle: {
-    marginTop: 20,
+  scrollContent: {
+    paddingTop: 10,
+    paddingBottom: 24,
+    gap: 12,
+  },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  topTitle: {
+    flex: 1,
+    textAlign: "left",
+    color: colors.text,
+    fontSize: 26,
+    fontWeight: "800",
+  },
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: "rgba(255,255,255,0.86)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   searchInput: {
+    marginBottom: 0,
+    backgroundColor: "white",
+  },
+  peopleRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 2,
+    // borderRadius:12,
+    // borderBlockColor:'white',
+  },
+  personAvatarWrap: {
+    width: 70,
+    alignItems: "center",
+    gap: 6,
+  },
+  personAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#f0dfd6",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#dcc1b3",
+  },
+  personName: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  inboxCard: {
+    gap: 0,
+    borderWidth: 0,
+  },
+  inboxHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 2,
   },
   chatRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
     padding: 10,
     marginTop: 8,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
   },
   chatRowUnread: {
-    backgroundColor: '#eff6ff',
-    borderColor: '#60a5fa',
+    backgroundColor: "#fff8ea",
+    borderColor: "#f0c36b",
   },
   chatRowActive: {
     borderColor: colors.accent,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: "#f0fdf4",
   },
   avatarCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#dbeafe',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#dbeafe",
+    alignItems: "center",
+    justifyContent: "center",
   },
   departmentAvatar: {
-    backgroundColor: '#dcfce7',
+    backgroundColor: "#dcfce7",
   },
   avatarText: {
-    color: '#0f172a',
-    fontWeight: '700',
+    color: "#0f172a",
+    fontWeight: "700",
   },
   chatRowContent: {
     flex: 1,
   },
   chatRowTitle: {
     color: colors.text,
-    fontWeight: '700',
+    fontWeight: "700",
     fontSize: 14,
   },
   chatRowPreview: {
@@ -565,8 +802,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   peopleWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
     marginTop: 8,
   },
@@ -576,51 +813,88 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#f8fafc',
+    backgroundColor: "#f8fafc",
   },
   personChipText: {
     color: colors.text,
-    fontWeight: '600',
+    fontWeight: "600",
+  },
+  brandBlock: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  brandMark: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#e6e6e6",
+  },
+  brandMarkImage: {
+    width: 22,
+    height: 22,
+    borderRadius: 999,
+  },
+  brandMarkText: {
+    color: colors.brand,
+    fontWeight: "900",
+    fontSize: 18,
+    letterSpacing: -0.5,
+  },
+  brandTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "800",
+    lineHeight: 20,
+  },
+  brandSubtitle: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 1,
   },
   conversationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
     marginBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: "#e5e7eb",
     paddingBottom: 8,
   },
   conversationAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#d1fae5',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#d1fae5",
+    alignItems: "center",
+    justifyContent: "center",
   },
   conversationAvatarText: {
-    color: '#065f46',
-    fontWeight: '700',
+    color: "#065f46",
+    fontWeight: "700",
   },
   teacherBadge: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     marginTop: 4,
-    backgroundColor: '#f3e8ff',
+    backgroundColor: "#f3e8ff",
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
   teacherBadgeText: {
-    color: '#6b21a8',
+    color: "#6b21a8",
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: "800",
     letterSpacing: 0.4,
   },
   conversationTopBar: {
     marginTop: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
     marginBottom: 10,
     paddingHorizontal: 16,
@@ -632,11 +906,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: "#d1d5db",
+    alignItems: "center",
+    justifyContent: "center",
   },
   iconButtonPressed: {
     opacity: 0.7,
@@ -646,7 +920,7 @@ const styles = StyleSheet.create({
   },
   conversationTopTitle: {
     color: colors.text,
-    fontWeight: '700',
+    fontWeight: "700",
     fontSize: 16,
     flexShrink: 1,
   },
@@ -656,7 +930,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   messageList: {
-    backgroundColor: '#f5efe6',
+    backgroundColor: "#f5efe6",
     borderRadius: 12,
     padding: 8,
   },
@@ -670,8 +944,8 @@ const styles = StyleSheet.create({
   },
   composerRow: {
     marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'stretch',
+    flexDirection: "row",
+    alignItems: "stretch",
     gap: 8,
     paddingHorizontal: 16,
     paddingBottom: 14,
@@ -681,7 +955,7 @@ const styles = StyleSheet.create({
   },
   composerInput: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     color: colors.text,
     borderRadius: 22,
     paddingHorizontal: 16,
@@ -689,7 +963,7 @@ const styles = StyleSheet.create({
     minHeight: 54,
     minWidth: 0,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: "#cbd5e1",
     fontSize: 15,
   },
   sendIconButton: {
@@ -697,9 +971,9 @@ const styles = StyleSheet.create({
     height: 54,
     borderRadius: 27,
     backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#0f172a',
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#0f172a",
     shadowOpacity: 0.14,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -709,20 +983,28 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   primaryActionCompact: {
-    width: '100%',
+    width: "100%",
+  },
+  newMessageWrap: {
+    marginTop: 10,
+    alignItems: "flex-end",
+  },
+  newMessageButton: {
+    minWidth: 128,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.35)',
-    justifyContent: 'center',
+    backgroundColor: "rgba(15, 23, 42, 0.35)",
+    justifyContent: "center",
     padding: 20,
   },
   peopleModalCard: {
-    maxHeight: '80%',
+    maxHeight: "80%",
+    backgroundColor:'white',
   },
   modalPersonRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
     borderWidth: 1,
     borderColor: colors.border,
@@ -734,31 +1016,31 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#dbeafe',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#dbeafe",
+    alignItems: "center",
+    justifyContent: "center",
   },
   unreadBadge: {
     minWidth: 22,
     height: 22,
     borderRadius: 11,
     paddingHorizontal: 6,
-    backgroundColor: '#2563eb',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#b85a3e",
+    alignItems: "center",
+    justifyContent: "center",
   },
   unreadBadgeText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   conversationRoot: {
     flex: 1,
-    backgroundColor: '#f5efe6',
+    backgroundColor: "#f5efe6",
   },
   conversationBgLayer: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#f5efe6',
+    backgroundColor: "#f5efe6",
   },
   conversationContent: {
     flex: 1,

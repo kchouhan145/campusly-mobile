@@ -15,6 +15,8 @@ import MarketplaceScreen from '../screens/MarketplaceScreen';
 import ChatScreen from '../screens/ChatScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import AdminUsersScreen from '../screens/AdminUsersScreen';
+import AnnouncementsScreen from '../screens/AnnouncementsScreen';
+// import AnnouncementDetailsScreen from '../screens/AnnouncementDetailsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -52,9 +54,15 @@ function AppTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border },
-        tabBarLabelStyle: { fontSize: 10 },
-        tabBarItemStyle: { paddingVertical: 2 },
+        tabBarStyle: {
+          backgroundColor: '#fff8f4',
+          borderTopColor: '#e2d2c8',
+          height: 62,
+          paddingBottom: 6,
+          paddingTop: 4,
+        },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
+        tabBarItemStyle: { paddingVertical: 3 },
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarIcon: ({ focused, color, size }) => (
@@ -77,6 +85,8 @@ function AppStack() {
   return (
     <Stack.Navigator>
       <Stack.Screen options={{ headerShown: false }} name="AppTabs" component={AppTabs} />
+      <Stack.Screen name="Announcements" component={AnnouncementsScreen} options={{ title: 'Announcements' }} />
+      {/* <Stack.Screen name="AnnouncementDetails" component={AnnouncementDetailsScreen} options={{ title: 'Announcement' }} /> */}
     </Stack.Navigator>
   );
 }
