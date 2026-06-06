@@ -2,7 +2,8 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme/colors';
@@ -35,6 +36,10 @@ const navTheme = {
 
 function AppTabs() {
   const { user } = useAuth();
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const baseHeight = width < 360 ? 56 : 62;
+  const tabBarHeight = baseHeight + Math.max(insets.bottom, 6);
 
   const iconName = (routeName, focused) => {
     const iconMap = {
@@ -57,8 +62,8 @@ function AppTabs() {
         tabBarStyle: {
           backgroundColor: '#fff8f4',
           borderTopColor: '#e2d2c8',
-          height: 62,
-          paddingBottom: 6,
+          height: tabBarHeight,
+          paddingBottom: Math.max(insets.bottom, 6),
           paddingTop: 4,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },

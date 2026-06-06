@@ -12,7 +12,7 @@ export default function StartupSplash() {
         <Image source={require('../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
       </View>
 
-      <Text style={styles.tagline}>Connect your campus</Text>
+      {/* <Text style={styles.tagline}>Connect your campus</Text> */}
 
       <View style={styles.creditWrap}>
         <Text style={styles.credit}>By Kartik Chouhan</Text>
