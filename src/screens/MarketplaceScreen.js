@@ -333,15 +333,15 @@ export default function MarketplaceScreen() {
                 ]}
               >
                 <View style={styles.imageWrap}>
-                  {imageUri ? (
+                  {item.image ? (
                     <Pressable
                       onPress={() => {
-                        setSelectedImage(imageUri);
+                        setSelectedImage(item.image);
                         setImageModalVisible(true);
                       }}
                       accessibilityRole="imagebutton"
                     >
-                      <Image source={{ uri: imageUri }} style={styles.image} />
+                      <Image source={{ uri: item.image }} style={styles.image} />
                     </Pressable>
                   ) : (
                     <View style={styles.imagePlaceholder}>
