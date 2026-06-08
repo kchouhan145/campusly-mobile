@@ -150,7 +150,7 @@ export default function MarketplaceScreen() {
         fd.append("contactInfo", createForm.contactInfo);
         // append image file
         const file = createForm.image;
-        fd.append("images", {
+        fd.append("image", {
           uri: file.uri,
           name: file.fileName || `photo_${Date.now()}.jpg`,
           type: file.type || "image/jpeg",
