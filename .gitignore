@@ -37,3 +37,5 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+src/services/config.js
+# src/services/config.js
