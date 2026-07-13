@@ -316,7 +316,7 @@ export default function MarketplaceScreen() {
         <View style={styles.grid}>
           {visibleProducts.map((item) => {
             const ownerId = item.sellerId?._id || item.sellerId;
-            const canManage = user?.role === "admin" || ownerId === user?.id;
+            const canManage = user?.role === "admin" || user?.role === "superAdmin" || ownerId === user?.id;
             const productImage = imageForItem(item);
 
             return (

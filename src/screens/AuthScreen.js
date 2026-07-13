@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, Text, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { apiRequest } from '../services/api';
 import { AppButton, AppInput, AppSelect, Card, ErrorText, Heading, Muted, Screen, useResponsiveLayout } from '../components/ui';
 import { colors } from '../theme/colors';
 
-const departments = ['DCSA'];
+const FALLBACK_DEPARTMENTS = ['DCSA'];
 
 export default function AuthScreen() {
   const { login, register, verifyOtp, resendOtp } = useAuth();
@@ -13,6 +14,7 @@ export default function AuthScreen() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [departments, setDepartments] = useState(FALLBACK_DEPARTMENTS);
   const [pendingOtpEmail, setPendingOtpEmail] = useState('');
   const [showOtpVerification, setShowOtpVerification] = useState(false);
 
@@ -26,6 +28,35 @@ export default function AuthScreen() {
     role: '',
   });
   const [otpForm, setOtpForm] = useState({ email: '', otp: '' });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadDepartments = async () => {
+      try {
+        const data = await apiRequest('/api/departments');
+        const nextDepartments = Array.isArray(data.departments)
+          ? data.departments
+              .map((department) => String(department?.name || department || '').trim())
+              .filter(Boolean)
+          : [];
+
+        if (isMounted) {
+          setDepartments(nextDepartments.length > 0 ? nextDepartments : FALLBACK_DEPARTMENTS);
+        }
+      } catch {
+        if (isMounted) {
+          setDepartments(FALLBACK_DEPARTMENTS);
+        }
+      }
+    };
+
+    loadDepartments();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const withState = async (fn) => {
     setError('');

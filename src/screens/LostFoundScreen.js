@@ -354,7 +354,7 @@ export default function LostFoundScreen() {
                   Contact: {item.contactInfo}
                 </Muted>
 
-                {user?.role === "admin" ||
+                {user?.role === "admin" || user?.role === "superAdmin" ||
                 (item.userId?._id || item.userId) === user?.id ? (
                   <AppButton
                     title="Delete"

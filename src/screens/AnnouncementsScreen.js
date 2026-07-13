@@ -122,7 +122,7 @@ export default function AnnouncementsScreen() {
 
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
                 <AppButton title="Close" type="ghost" style={{ flex: 1 }} onPress={closeDetails} />
-                {(user?.role === 'admin' || (selectedAnnouncement?.createdBy?._id || selectedAnnouncement?.createdBy) === user?.id) ? (
+                {(user?.role === 'admin' || user?.role === 'superAdmin' || (selectedAnnouncement?.createdBy?._id || selectedAnnouncement?.createdBy) === user?.id) ? (
                   <AppButton title="Delete" type="danger" style={{ flex: 1 }} onPress={async () => {
                     try {
                       await apiRequest(`/api/announcements/${selectedAnnouncement._id}`, { method: 'DELETE', token });

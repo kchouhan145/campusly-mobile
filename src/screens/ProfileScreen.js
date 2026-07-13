@@ -31,7 +31,7 @@ function getInitials(name, username) {
 }
 
 function getRoleTheme(role) {
-  if (role === "admin") {
+  if (role === "admin" || role === "superAdmin") {
     return {
       avatarBg: "#ede9fe",
       avatarText: "#5b21b6",
@@ -104,7 +104,11 @@ export default function ProfileScreen() {
 
           <View style={styles.brandBlock}>
             <View style={styles.brandMark}>
-              <Image source={require('../../assets/icon.png')} style={styles.brandMarkImage} resizeMode="contain" />
+              <Image
+                source={require("../../assets/icon.png")}
+                style={styles.brandMarkImage}
+                resizeMode="contain"
+              />
             </View>
             <View>
               <Text style={styles.brandTitle}>Campusly</Text>
@@ -127,11 +131,19 @@ export default function ProfileScreen() {
                 { backgroundColor: roleTheme.avatarBg },
               ]}
             >
-              <Text
-                style={[styles.avatarText, { color: roleTheme.avatarText }]}
-              >
-                {getInitials(user?.name, user?.username)}
-              </Text>
+              {!user?.avatar ? (
+                <Text
+                  style={[styles.avatarText, { color: roleTheme.avatarText }]}
+                >
+                  {getInitials(user?.name, user?.username)}
+                </Text>
+              ) : (
+                <Image
+                  source={{ uri: user.avatar }}
+                  style={styles.avatar}
+                  resizeMode="cover"
+                />
+              )}
             </View>
             <View style={styles.heroMeta}>
               <Text style={styles.heroName}>
@@ -212,6 +224,11 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+   avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 20,
+  },
   scrollContent: {
     paddingTop: 8,
     paddingBottom: 24,

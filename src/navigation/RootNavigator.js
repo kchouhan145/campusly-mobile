@@ -81,7 +81,7 @@ function AppTabs() {
       <Tab.Screen name="Market" component={MarketplaceScreen} />
       <Tab.Screen name="Chat" component={ChatScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
-      {user?.role === 'admin' ? <Tab.Screen name="Admin" component={AdminUsersScreen} /> : null}
+      {user?.role === 'admin' || user?.role === 'superAdmin' ? <Tab.Screen name="Admin" component={AdminUsersScreen} /> : null}
     </Tab.Navigator>
   );
 }

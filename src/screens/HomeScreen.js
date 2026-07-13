@@ -931,7 +931,7 @@ export default function HomeScreen() {
                     setSelectedAnnouncement(null);
                   }}
                 />
-                {user?.role === "admin" ||
+                {user?.role === "admin" || user?.role === "superAdmin" ||
                 (selectedAnnouncement?.createdBy?._id ||
                   selectedAnnouncement?.createdBy) === user?.id ? (
                   <AppButton
@@ -1034,7 +1034,7 @@ export default function HomeScreen() {
                     setSelectedEvent(null);
                   }}
                 />
-                {user?.role === "admin" ||
+                {user?.role === "admin" || user?.role === "superAdmin" ||
                 (selectedEvent?.createdBy?._id || selectedEvent?.createdBy) ===
                   user?.id ? (
                   <AppButton

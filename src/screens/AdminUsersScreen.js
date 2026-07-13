@@ -38,12 +38,26 @@ export default function AdminUsersScreen() {
   const { token, user } = useAuth();
   const { isCompact } = useResponsiveLayout();
   const [users, setUsers] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
+  const [departmentName, setDepartmentName] = useState("");
+  const [departmentError, setDepartmentError] = useState("");
+  const [adminForm, setAdminForm] = useState({
+    username: "",
+    name: "",
+    email: "",
+    password: "",
+    department: "",
+  });
+  const [adminError, setAdminError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
+  const isAdminLike = user?.role === "admin" || user?.role === "superAdmin";
+  const isSuperAdmin = user?.role === "superAdmin";
+
   const loadUsers = useCallback(async () => {
-    if (!token || user?.role !== "admin") return;
+    if (!token || !isAdminLike) return;
     setError("");
     try {
       const data = await apiRequest("/api/users/admin", { token });
@@ -51,12 +65,25 @@ export default function AdminUsersScreen() {
     } catch (e) {
       setError(e.message || "Failed to load admin users");
     }
-  }, [token, user?.role]);
+  }, [isAdminLike, token]);
+
+  const loadDepartments = useCallback(async () => {
+    if (!token || !isAdminLike) return;
+
+    setDepartmentError("");
+    try {
+      const data = await apiRequest("/api/departments", { token });
+      setDepartments(Array.isArray(data.departments) ? data.departments : []);
+    } catch (e) {
+      setDepartmentError(e.message || "Failed to load departments");
+    }
+  }, [isAdminLike, token]);
 
   useFocusEffect(
     useCallback(() => {
       loadUsers();
-    }, [loadUsers]),
+      loadDepartments();
+    }, [loadDepartments, loadUsers]),
   );
 
   const filtered = useMemo(() => {
@@ -71,8 +98,66 @@ export default function AdminUsersScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadUsers();
+    await Promise.all([loadUsers(), loadDepartments()]);
     setRefreshing(false);
+  };
+
+  const onCreateDepartment = async () => {
+    const name = departmentName.trim();
+
+    if (!name) {
+      setDepartmentError("Department name is required");
+      return;
+    }
+
+    try {
+      setDepartmentError("");
+      await apiRequest("/api/departments", {
+        method: "POST",
+        token,
+        body: { name },
+      });
+      setDepartmentName("");
+      await loadDepartments();
+    } catch (e) {
+      setDepartmentError(e.message || "Failed to create department");
+    }
+  };
+
+  const onCreateAdmin = async () => {
+    if (!isSuperAdmin) return;
+
+    const payload = {
+      username: adminForm.username.trim(),
+      name: adminForm.name.trim(),
+      email: adminForm.email.trim().toLowerCase(),
+      password: adminForm.password,
+      department: adminForm.department.trim(),
+    };
+
+    if (!payload.username || !payload.name || !payload.email || !payload.password) {
+      setAdminError("username, name, email, and password are required");
+      return;
+    }
+
+    try {
+      setAdminError("");
+      await apiRequest("/api/users/admin/create", {
+        method: "POST",
+        token,
+        body: payload,
+      });
+      setAdminForm({
+        username: "",
+        name: "",
+        email: "",
+        password: "",
+        department: "",
+      });
+      await loadUsers();
+    } catch (e) {
+      setAdminError(e.message || "Failed to create admin account");
+    }
   };
 
   const onRole = async (id, role) => {
@@ -122,11 +207,11 @@ export default function AdminUsersScreen() {
     ]);
   };
 
-  if (user?.role !== "admin") {
+  if (!isAdminLike) {
     return (
       <Screen>
         <Heading>Admin</Heading>
-        <Muted>Only admins can access this tab.</Muted>
+        <Muted>Only admins and super admins can access this tab.</Muted>
       </Screen>
     );
   }
@@ -137,6 +222,7 @@ export default function AdminUsersScreen() {
     (item) => item.role === "teacher",
   ).length;
   const adminsCount = filtered.filter((item) => item.role === "admin").length;
+  const superAdminsCount = filtered.filter((item) => item.role === "superAdmin").length;
 
   return (
     <Screen>
@@ -186,8 +272,87 @@ export default function AdminUsersScreen() {
               <Text style={styles.summaryValue}>{adminsCount}</Text>
               <Text style={styles.summaryLabel}>Admins</Text>
             </View>
+            {/* <View style={[styles.summaryChip, styles.summaryChipCool]}>
+              <Text style={styles.summaryValue}>{superAdminsCount}</Text>
+              <Text style={styles.summaryLabel}>Super Admins</Text>
+            </View> */}
           </View>
         </View>
+
+        {isSuperAdmin ? (
+          <Card style={styles.departmentCard}>
+            <Heading size="sm">Departments</Heading>
+            <Muted style={styles.departmentText}>
+              Add departments that appear in registration and admin workflows.
+            </Muted>
+            <View style={styles.departmentForm}>
+              <AppInput
+                label="New department"
+                value={departmentName}
+                onChangeText={setDepartmentName}
+              />
+              <AppButton title="Add department" onPress={onCreateDepartment} />
+            </View>
+            {!!departmentError ? (
+              <Text style={{ color: colors.danger }}>{departmentError}</Text>
+            ) : null}
+            <View style={styles.departmentChips}>
+              {departments.map((department) => (
+                <Text key={department._id || department.name} style={styles.departmentChip}>
+                  {department.name || department}
+                </Text>
+              ))}
+            </View>
+          </Card>
+        ) : null}
+
+        {isSuperAdmin ? (
+          <Card style={styles.departmentCard}>
+            <Heading size="sm">Create Admin Account</Heading>
+            <Muted style={styles.departmentText}>
+              Super admins can create verified admin accounts directly.
+            </Muted>
+            <View style={styles.departmentForm}>
+              <AppInput
+                label="Username"
+                value={adminForm.username}
+                onChangeText={(value) => setAdminForm((prev) => ({ ...prev, username: value }))}
+              />
+              <AppInput
+                label="Full name"
+                value={adminForm.name}
+                onChangeText={(value) => setAdminForm((prev) => ({ ...prev, name: value }))}
+              />
+              <AppInput
+                label="Email"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={adminForm.email}
+                onChangeText={(value) => setAdminForm((prev) => ({ ...prev, email: value }))}
+              />
+              <AppInput
+                label="Password"
+                secureTextEntry
+                value={adminForm.password}
+                onChangeText={(value) => setAdminForm((prev) => ({ ...prev, password: value }))}
+              />
+              <AppSelect
+                label="Department"
+                value={adminForm.department}
+                placeholder="Select department"
+                items={departments.map((department) => ({
+                  label: department.name || department,
+                  value: department.name || department,
+                }))}
+                onValueChange={(value) => setAdminForm((prev) => ({ ...prev, department: value }))}
+              />
+              <AppButton title="Create admin" onPress={onCreateAdmin} />
+            </View>
+            {!!adminError ? (
+              <Text style={{ color: colors.danger }}>{adminError}</Text>
+            ) : null}
+          </Card>
+        ) : null}
 
         <AppInput
           style={{ marginTop: 10 ,backgroundColor:'white'}}
@@ -366,6 +531,34 @@ const styles = StyleSheet.create({
     borderColor: "#ead7cd",
     borderRadius: 22,
     gap: 10,
+  },
+  departmentCard: {
+    gap: 10,
+    backgroundColor: "#fffdfb",
+    borderColor: "#ead9cf",
+    borderRadius: 18,
+  },
+  departmentText: {
+    marginTop: 2,
+  },
+  departmentForm: {
+    gap: 10,
+  },
+  departmentChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  departmentChip: {
+    color: colors.textMuted,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    fontSize: 11,
+    overflow: "hidden",
+    backgroundColor: "#fafafa",
   },
   summaryRow: {
     flexDirection: "row",

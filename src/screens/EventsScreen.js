@@ -48,7 +48,7 @@ export default function EventsScreen() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [registeringEventId, setRegisteringEventId] = useState("");
 
-  const canCreate = user?.role === "teacher" || user?.role === "admin";
+  const canCreate = user?.role === "teacher" || user?.role === "admin" || user?.role === "superAdmin";
 
   const loadEvents = useCallback(async () => {
     if (!token) return;
@@ -414,7 +414,7 @@ export default function EventsScreen() {
                   setCreateForm((p) => ({ ...p, maxAttendees: v }))
                 }
               />
-              {user?.role === "admin" ? (
+              {user?.role === "admin" || user?.role === "superAdmin" ? (
                 <AppInput
                   label="Department"
                   value={createForm.department}
