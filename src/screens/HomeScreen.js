@@ -220,19 +220,23 @@ export default function HomeScreen() {
     try {
       if (announcementForm.image && announcementForm.image.uri) {
         const fd = new FormData();
-        fd.append('title', announcementForm.title.trim());
-        fd.append('content', announcementForm.content.trim());
+        fd.append("title", announcementForm.title.trim());
+        fd.append("content", announcementForm.content.trim());
         const file = announcementForm.image;
-        fd.append('image', {
+        fd.append("image", {
           uri: file.uri,
           name: file.fileName || `photo_${Date.now()}.jpg`,
-          type: file.type || 'image/jpeg',
+          type: file.type || "image/jpeg",
         });
 
-        await apiRequest('/api/announcements', { method: 'POST', token, body: fd });
+        await apiRequest("/api/announcements", {
+          method: "POST",
+          token,
+          body: fd,
+        });
       } else {
-        await apiRequest('/api/announcements', {
-          method: 'POST',
+        await apiRequest("/api/announcements", {
+          method: "POST",
           token,
           body: {
             title: announcementForm.title.trim(),
@@ -254,16 +258,20 @@ export default function HomeScreen() {
   const pickAnnouncementImage = async () => {
     try {
       // eslint-disable-next-line global-require
-      const { launchImageLibrary } = require('react-native-image-picker');
-      const res = await launchImageLibrary({ mediaType: 'photo', selectionLimit: 1, includeBase64: false });
+      const { launchImageLibrary } = require("react-native-image-picker");
+      const res = await launchImageLibrary({
+        mediaType: "photo",
+        selectionLimit: 1,
+        includeBase64: false,
+      });
       const asset = res?.assets && res.assets[0];
       if (asset) {
         setAnnouncementForm((p) => ({ ...p, image: asset }));
       }
     } catch (err) {
       Alert.alert(
-        'Image picker not available',
-        'Please install react-native-image-picker and rebuild the app:\n\nnpm install react-native-image-picker\n\nThen rebuild the app.',
+        "Image picker not available",
+        "Please install react-native-image-picker and rebuild the app:\n\nnpm install react-native-image-picker\n\nThen rebuild the app.",
       );
     }
   };
@@ -598,9 +606,7 @@ export default function HomeScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        contentContainerStyle={[
-          styles.scrollContent,
-        ]}
+        contentContainerStyle={[styles.scrollContent]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.topBar}>
@@ -660,7 +666,7 @@ export default function HomeScreen() {
 
           {user?.role === "teacher" ? (
             <AppButton
-              title="Create announcement"
+              title="+ Create announcement"
               onPress={() => setShowAnnouncementModal(true)}
               style={{ marginTop: 8 }}
             />
@@ -802,7 +808,7 @@ export default function HomeScreen() {
         >
           <View
             style={{
-              height:'100%',
+              height: "100%",
               flex: 1,
               backgroundColor: "rgba(15, 23, 42, 0.35)",
               justifyContent: "center",
@@ -810,7 +816,10 @@ export default function HomeScreen() {
             }}
           >
             <Card style={{ backgroundColor: "white" }}>
-              <Heading size="sm">Create announcement</Heading>
+              <Heading size="sm">
+                <Ionicons name="create" size={18} color="" />
+                Create announcement
+              </Heading>
               <AppInput
                 label="Title"
                 value={announcementForm.title}
@@ -826,13 +835,28 @@ export default function HomeScreen() {
                   setAnnouncementForm((prev) => ({ ...prev, content: value }))
                 }
               />
-              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 8 }}>
-                <AppButton title="Pick image" onPress={pickAnnouncementImage} />
+              <View
+                style={{
+                  flexDirection: "row",
+                  gap: 8,
+                  alignItems: "center",
+                  marginTop: 8,
+                }}
+              >
+                <AppButton
+                  title={announcementForm.image ? "Change Image" : "Select Image"}
+                  onPress={pickAnnouncementImage}
+                  style={{ paddingHorizontal: 16 }}
+                />
+
                 {announcementForm.image?.uri ? (
-                  <Image source={{ uri: announcementForm.image.uri }} style={{ width: 64, height: 64, borderRadius: 8 }} />
+                  <Image
+                    source={{ uri: announcementForm.image.uri }}
+                    style={{ width: 64, height: 64, borderRadius: 8 }}
+                  />
                 ) : null}
               </View>
-              
+
               <View
                 style={[
                   { flexDirection: "row", gap: 10 },
@@ -845,7 +869,11 @@ export default function HomeScreen() {
                   style={isCompact ? { width: "100%" } : { flex: 1 }}
                   onPress={() => {
                     setShowAnnouncementModal(false);
-                    setAnnouncementForm({ title: "", content: "", image: null });
+                    setAnnouncementForm({
+                      title: "",
+                      content: "",
+                      image: null,
+                    });
                   }}
                   disabled={creatingAnnouncement}
                 />
@@ -931,7 +959,8 @@ export default function HomeScreen() {
                     setSelectedAnnouncement(null);
                   }}
                 />
-                {user?.role === "admin" || user?.role === "superAdmin" ||
+                {user?.role === "admin" ||
+                user?.role === "superAdmin" ||
                 (selectedAnnouncement?.createdBy?._id ||
                   selectedAnnouncement?.createdBy) === user?.id ? (
                   <AppButton
@@ -1034,7 +1063,8 @@ export default function HomeScreen() {
                     setSelectedEvent(null);
                   }}
                 />
-                {user?.role === "admin" || user?.role === "superAdmin" ||
+                {user?.role === "admin" ||
+                user?.role === "superAdmin" ||
                 (selectedEvent?.createdBy?._id || selectedEvent?.createdBy) ===
                   user?.id ? (
                   <AppButton

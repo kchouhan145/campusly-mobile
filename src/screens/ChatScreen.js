@@ -317,14 +317,22 @@ export default function ChatScreen() {
   };
 
   const filteredPeople = useMemo(() => {
-    const q = peopleSearch.toLowerCase().trim();
-    if (!q) return people;
-    return people.filter((person) =>
+  const q = peopleSearch.toLowerCase().trim();
+
+  return people.filter((person) => {
+    const matchesDepartment =
+      person.department === user?.department &&
+      person._id !== user?._id;
+
+    const matchesSearch =
+      !q ||
       `${person.name} ${person.username} ${person.email}`
         .toLowerCase()
-        .includes(q),
-    );
-  }, [people, peopleSearch]);
+        .includes(q);
+
+    return matchesDepartment && matchesSearch;
+  });
+}, [people, peopleSearch, user]);
 
   const onSend = async () => {
     if (!selected || !text.trim()) return;
@@ -547,22 +555,28 @@ export default function ChatScreen() {
       />
 
       <View style={styles.peopleRow}>
-        {people.slice(0, 4).map((person) => (
-          <Pressable
-            key={person._id}
-            style={styles.personAvatarWrap}
-            onPress={() => onOpenPerson(person)}
-          >
-            <View style={styles.personAvatar}>
-              <Text style={styles.avatarText}>
-                {initialsFromTitle(person.name || person.username)}
+        {people
+          .filter(
+            (person) =>
+              person.department === user.department && person._id !== user._id,
+          )
+          .slice(0, 4)
+          .map((person) => (
+            <Pressable
+              key={person._id}
+              style={styles.personAvatarWrap}
+              onPress={() => onOpenPerson(person)}
+            >
+              <View style={styles.personAvatar}>
+                <Text style={styles.avatarText}>
+                  {initialsFromTitle(person.name || person.username)}
+                </Text>
+              </View>
+              <Text numberOfLines={1} style={styles.personName}>
+                {person.name || person.username}
               </Text>
-            </View>
-            <Text numberOfLines={1} style={styles.personName}>
-              {person.name || person.username}
-            </Text>
-          </Pressable>
-        ))}
+            </Pressable>
+          ))}
       </View>
 
       {!!error && <Text style={{ color: colors.danger }}>{error}</Text>}
@@ -1000,7 +1014,7 @@ const styles = StyleSheet.create({
   },
   peopleModalCard: {
     maxHeight: "80%",
-    backgroundColor:'white',
+    backgroundColor: "white",
   },
   modalPersonRow: {
     flexDirection: "row",

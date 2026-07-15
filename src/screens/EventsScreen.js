@@ -29,6 +29,7 @@ const initialCreate = {
   title: "",
   description: "",
   date: "",
+  time: "",
   location: "",
   maxAttendees: "",
   department: "",
@@ -48,7 +49,10 @@ export default function EventsScreen() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [registeringEventId, setRegisteringEventId] = useState("");
 
-  const canCreate = user?.role === "teacher" || user?.role === "admin" || user?.role === "superAdmin";
+  const canCreate =
+    user?.role === "teacher" ||
+    user?.role === "admin" ||
+    user?.role === "superAdmin";
 
   const loadEvents = useCallback(async () => {
     if (!token) return;
@@ -224,7 +228,7 @@ export default function EventsScreen() {
             </View>
             {canCreate ? (
               <AppButton
-                title="Create"
+                title="+ Create"
                 onPress={() => setShowCreateModal(true)}
                 style={styles.createButton}
               />
@@ -334,28 +338,16 @@ export default function EventsScreen() {
                       {item.maxAttendees ? ` / ${item.maxAttendees}` : ""}
                     </Muted>
                   </View>
-                  {user?.role === "student" && isRegistered ? (
-                    <AppButton
-                      title="Joined"
-                      type="ghost"
-                      disabled
-                      style={styles.joinButton}
-                    />
-                  ) : canRegister ? (
-                    <AppButton
-                      title={isToday ? "Join" : "Join"}
-                      onPress={() => onRegister(item._id)}
-                      loading={registeringEventId === item._id}
-                      disabled={registeringEventId === item._id}
-                      style={styles.joinButton}
-                    />
-                  ) : (
-                    <AppButton
-                      title="Open"
-                      type="ghost"
-                      disabled
-                      style={styles.joinButton}
-                    />
+                  {(user?.role === "teacher" ||
+                    user?.role === "admin" ||
+                    user?.role === "superAdmin") && (
+                    <Pressable
+                      style={styles.deleteButton}
+                      onPress={() => onDelete(item._id)}
+                    >
+                      <Ionicons name="trash-outline" size={18} color="#fff" />
+                      <Text style={styles.deleteButtonText}>Delete</Text>
+                    </Pressable>
                   )}
                 </View>
               </Card>
@@ -379,8 +371,11 @@ export default function EventsScreen() {
               padding: 20,
             }}
           >
-            <Card style={{backgroundColor:'white'}}>
-              <Heading size="sm">Create event</Heading>
+            <Card style={{ backgroundColor: "white" }}>
+              <Heading size="sm">
+                <Ionicons name="create" size={18} color="" />
+                Create event
+              </Heading>
               <AppInput
                 label="Title"
                 value={createForm.title}
@@ -395,9 +390,27 @@ export default function EventsScreen() {
                 }
               />
               <AppInput
-                label="Date time"
+                label="Event Date"
+                placeholder="YYYY-MM-DD (e.g. 2026-07-15)"
                 value={createForm.date}
-                onChangeText={(v) => setCreateForm((p) => ({ ...p, date: v }))}
+                onChangeText={(v) =>
+                  setCreateForm((prev) => ({
+                    ...prev,
+                    date: v,
+                  }))
+                }
+              />
+
+              <AppInput
+                label="Event Time"
+                placeholder="HH:MM (24-hour, e.g. 18:30)"
+                value={createForm.time}
+                onChangeText={(v) =>
+                  setCreateForm((prev) => ({
+                    ...prev,
+                    time: v,
+                  }))
+                }
               />
               <AppInput
                 label="Location"
@@ -486,6 +499,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: "rgba(255,255,255,0.86)",
+  },
+  deleteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ef4444",
+    borderRadius: 12,
+    paddingVertical: 12,
+    marginTop: 10,
+  },
+
+  deleteButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    marginLeft: 8,
   },
   brandBlock: {
     flexDirection: "row",

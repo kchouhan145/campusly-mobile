@@ -1,5 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import {
+  TouchableOpacity,
+  Linking,
   Alert,
   Image,
   Modal,
@@ -179,6 +181,9 @@ export default function MarketplaceScreen() {
     }
   };
 
+  const isValidIndianMobile = (number) => {
+    return /^[6-9]\d{9}$/.test(number.trim());
+  };
   const onMarkSold = async (id) => {
     try {
       await apiRequest(`/api/products/${id}`, {
@@ -316,7 +321,10 @@ export default function MarketplaceScreen() {
         <View style={styles.grid}>
           {visibleProducts.map((item) => {
             const ownerId = item.sellerId?._id || item.sellerId;
-            const canManage = user?.role === "admin" || user?.role === "superAdmin" || ownerId === user?.id;
+            const canManage =
+              user?.role === "admin" ||
+              user?.role === "superAdmin" ||
+              ownerId === user?.id;
             const productImage = imageForItem(item);
 
             return (
@@ -341,7 +349,10 @@ export default function MarketplaceScreen() {
                       }}
                       accessibilityRole="imagebutton"
                     >
-                      <Image source={{ uri: item.image }} style={styles.image} />
+                      <Image
+                        source={{ uri: item.image }}
+                        style={styles.image}
+                      />
                     </Pressable>
                   ) : (
                     <View style={styles.imagePlaceholder}>
@@ -364,6 +375,14 @@ export default function MarketplaceScreen() {
                 <Muted style={styles.productMeta} numberOfLines={2}>
                   {item.description || "Campus listing"}
                 </Muted>
+                <TouchableOpacity
+                  style={styles.callButton}
+                  onPress={() => Linking.openURL(`tel:${item.contactInfo}`)}
+                >
+                  <Text style={styles.callButtonText}>
+                    📞 Call {item.contactInfo}
+                  </Text>
+                </TouchableOpacity>
 
                 {canManage ? (
                   <View
@@ -478,11 +497,17 @@ export default function MarketplaceScreen() {
                 </View>
               </View>
               <AppInput
-                label="Contact info"
+                label="Contact Info"
                 value={createForm.contactInfo}
-                onChangeText={(v) =>
-                  setCreateForm((p) => ({ ...p, contactInfo: v }))
-                }
+                keyboardType="phone-pad"
+                maxLength={13} // Allows +91XXXXXXXXXX
+                onChangeText={(v) => {
+                  setCreateForm((p) => ({ ...p, contactInfo: v }));
+
+                  if (v && !isValidIndianMobile(v)) {
+                    console.log("Invalid number");
+                  }
+                }}
               />
               <View
                 style={[
@@ -542,6 +567,21 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 24,
     gap: 12,
+  },
+  callButton: {
+    backgroundColor: "#4CAF50",
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+    marginHorizontal:12,
+    marginVertical:12,
+  },
+  callButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
   topBar: {
     flexDirection: "row",

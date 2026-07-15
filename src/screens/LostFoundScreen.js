@@ -263,7 +263,7 @@ export default function LostFoundScreen() {
           />
           <View style={styles.searchActionsRow}>
             <AppButton
-              title="Create"
+              title="+ Create"
               onPress={() => setShowCreateModal(true)}
               style={styles.createRectButton}
             />
@@ -340,18 +340,18 @@ export default function LostFoundScreen() {
                   {item.description}
                 </Muted>
                 <Muted style={styles.postMeta}>
-                  {item.location || "Location TBA"}
+                  📍 {item.location || "Location TBA"}
                 </Muted>
 
-                <View style={styles.statusRow}>
+                {/* <View style={styles.statusRow}>
                   <Text style={styles.statusLabel}>Status</Text>
                   <Text style={styles.statusValue}>
                     {item.isResolved ? "Closed" : "Open"}
                   </Text>
-                </View>
+                </View> */}
 
                 <Muted style={styles.contactText}>
-                  Contact: {item.contactInfo}
+                  📞:{item.contactInfo}
                 </Muted>
 
                 {user?.role === "admin" || user?.role === "superAdmin" ||
@@ -456,7 +456,7 @@ export default function LostFoundScreen() {
                 <View
                   style={{ flexDirection: "row", gap: 8, alignItems: "center" }}
                 >
-                  <AppButton title="Pick image" onPress={pickImage} />
+                  <AppButton title="Pick image" onPress={pickImage} style={{paddingHorizontal:16}} />
                   {createForm.image?.uri ? (
                     <Image
                       source={{ uri: createForm.image.uri }}
@@ -842,6 +842,7 @@ const styles = {
     marginTop: 0,
   },
   postMeta: {
+    fontWeight:'bold',
     marginTop: 2,
   },
   statusRow: {
